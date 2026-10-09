@@ -7,6 +7,7 @@ build/deploy time, never in an end user's mobile browser. No data is fabricated.
 from __future__ import annotations
 import datetime as dt
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -24,7 +25,7 @@ ALLOWED = {
     'addr:street', 'addr:housenumber', 'addr:place', 'addr:city',
     'addr:postcode', 'addr:municipality', 'contact:street', 'contact:housenumber',
     'contact:city', 'contact:postcode', 'contact:place',
-    'hgv', 'hgv:access', 'parking:hgv', 'truck_parking', 'parking:truck',
+    'hgv', 'hgv:access', 'parking:hgv', 'truck_parking', 'parking:truck', 'parking',
     'toilets:changing_table', 'changing_table', 'drinking_water',
     'website', 'contact:website', 'phone', 'contact:phone', 'source', 'check_date',
 }
@@ -38,6 +39,50 @@ def is_facility(t: dict) -> bool:
 
 def select_tags(tags):
     return {k: str(v) for k, v in tags.items() if k in ALLOWED}
+
+
+def truck_context(t: dict) -> str | None:
+    """Return an OSM-mapped candidate truck stop, not a verified entrance to a WC."""
+    if str(t.get('hgv', '')).lower() in ('no', 'private') or str(t.get('hgv:access', '')).lower() == 'no':
+        return None
+    tagged = any(str(t.get(k, '')).lower() in ('yes', 'designated')
+                 for k in ('hgv', 'hgv:access', 'parking:hgv', 'truck_parking', 'parking:truck'))
+    if t.get('amenity') == 'parking' and tagged:
+        return 'hgv_parking'
+    if t.get('highway') in ('services', 'rest_area'):
+        return 'rest_area'
+    return None
+
+
+def nearby_context(items: list, anchors: list):
+    """Annotate toilets near mapped stopping places; proximity does not prove access."""
+    # 0.01 degrees ~ 0.7-1.1 km in the Czech Republic: hash-grid lookup.
+    cells = {}
+    for lat, lon, kind in anchors:
+        key=(math.floor(lat * 100), math.floor(lon * 100))
+        cells.setdefault(key, []).append((lat, lon, kind))
+    for p in items:
+        t = p['tags']
+        if truck_context(t):
+            t['pauza:truck_context'] = truck_context(t)
+            t['pauza:truck_distance_m'] = '0'
+            continue
+        lat, lon = p['lat'], p['lon']
+        la, lo = math.floor(lat * 100), math.floor(lon * 100)
+        best = None
+        # 3x3 cells covers nearest candidates under 650m.
+        for i in range(la - 1, la + 2):
+            for j in range(lo - 1, lo + 2):
+                for a_lat, a_lon, kind in cells.get((i, j), []):
+                    dlat = (lat-a_lat) * 111_195
+                    dlon = (lon-a_lon) * 111_195 * math.cos(math.radians(lat))
+                    dist = math.hypot(dlat, dlon)
+                    limit = 380 if kind == 'hgv_parking' else 600
+                    if dist <= limit and (best is None or (kind == 'hgv_parking', -dist) > (best[0]=='hgv_parking', -best[1])):
+                        best = (kind, dist)
+        if best:
+            t['pauza:truck_context'] = best[0]
+            t['pauza:truck_distance_m'] = str(round(best[1]))
 
 def download(url, path):
     last_exc = None
@@ -67,15 +112,20 @@ def run():
         download(SOURCE, pbf)
         print('Downloaded', pbf.stat().st_size, 'bytes', flush=True)
         way_elements = []
+        truck_ways = []
+        truck_points = []
         wanted_refs = set()
         class Ways(osmium.SimpleHandler):
             def way(self, w):
                 if not len(w.tags): return
                 tags = dict(w.tags)
-                if not is_facility(tags): return
+                facility = is_facility(tags)
+                context = truck_context(tags)
+                if not facility and not context: return
                 refs = [n.ref for n in w.nodes]
                 if not refs: return
-                way_elements.append((int(w.id), select_tags(tags), refs))
+                if facility: way_elements.append((int(w.id), select_tags(tags), refs))
+                if context: truck_ways.append((refs, context))
                 wanted_refs.update(refs)
         print('Pass 1: collecting tagged ways...', flush=True)
         Ways().apply_file(str(pbf), locations=False)
@@ -96,8 +146,10 @@ def run():
                                    'lat': round(float(n.location.lat), 7),
                                    'lon': round(float(n.location.lon), 7),
                                    'kind': tags['place']})
-                if not is_facility(tags): return
                 lat, lon = float(n.location.lat), float(n.location.lon)
+                context = truck_context(tags)
+                if context: truck_points.append((lat, lon, context))
+                if not is_facility(tags): return
                 items.append({'type': 'node', 'id': ident, 'lat': round(lat, 7), 'lon': round(lon, 7), 'tags': select_tags(tags)})
         print('Pass 2: extracting toilet/shower points and way coordinates...', flush=True)
         Nodes().apply_file(str(pbf), locations=False)
@@ -107,6 +159,13 @@ def run():
             lat = sum(p[0] for p in coords) / len(coords)
             lon = sum(p[1] for p in coords) / len(coords)
             items.append({'type': 'way', 'id': ident, 'lat': round(lat, 7), 'lon': round(lon, 7), 'tags': tags})
+        for refs, context in truck_ways:
+            coords = [coordinate_refs[ref] for ref in refs if ref in coordinate_refs]
+            if not coords: continue
+            truck_points.append((sum(v[0] for v in coords)/len(coords), sum(v[1] for v in coords)/len(coords), context))
+        nearby_context(items, truck_points)
+        context_found=sum(1 for p in items if p['tags'].get('pauza:truck_context'))
+        print('Found', len(truck_points), 'truck parking/service-area contexts; annotated', context_found, 'WC/shower points', flush=True)
         items.sort(key=lambda e: (e['type'], e['id']))
         if len(items) < 500:
             raise RuntimeError(f'Only {len(items)} places extracted; refusing to publish an incomplete dataset')
