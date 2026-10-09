@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#4b372a">
+  <meta name="description" content="PAUZA – veřejná WC, sprchy a zázemí na cestách po České republice. Mapa, filtry, informace o ceně, bezbariérovosti a navigace.">
+  <title>PAUZA — WC a sprchy na cestách</title>
+  <!-- verze: 2026-10-09 dvoufázové načítání WC, bezpečná cache, stabilní body mapy -->
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzxAG9jG8gwTaw0A6wRMdaAB5Q=" crossorigin="">
+  <style>
+    :root{--ink:#3c2b21;--brown:#4b372a;--cocoa:#725440;--latte:#b79578;--sand:#eadcce;--pale:#f7f3ee;--cream:#fdfbf8;--line:#e5dbd0;--muted:#8b8177;--positive:#56725a;--negative:#b06953;--shadow:0 10px 34px rgba(61,42,27,.075)}
+    *{box-sizing:border-box} html,body{margin:0;min-height:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink);background:var(--pale)} button,input,select{font:inherit} button{cursor:pointer} button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #ac876b;outline-offset:2px} a{color:var(--cocoa)}
+    .shell{max-width:1660px;margin:auto;min-height:100dvh;display:flex;flex-direction:column;position:relative}
+    header{height:82px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 32px;background:var(--cream);border-bottom:1px solid var(--line);z-index:500}
+    .brand{display:flex;align-items:center;gap:14px;flex-shrink:0}.logo{display:grid;place-items:center;background:var(--brown);color:#fff;width:52px;height:52px;border-radius:15px;position:relative;font-weight:900;letter-spacing:-1px;font-size:17px}.logo:after{content:'';position:absolute;bottom:-6px;left:17px;border-width:8px 8px 0;border-style:solid;border-color:var(--brown) transparent transparent;transform:rotate(-17deg)}
+    .brand strong{display:block;font-weight:840;letter-spacing:-.9px;font-size:24px;line-height:1.08}.brand small{display:block;font-size:12px;color:var(--muted);margin-top:5px;letter-spacing:.02em}
+    .share-app{display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 13px;min-height:39px;border-radius:10px;border:1px solid var(--brown);background:var(--brown);color:white;font-size:12px;font-weight:800;white-space:nowrap}.share-app:hover{background:#69503f}.share-app svg{flex-shrink:0}
+    .header-right{display:flex;align-items:center;gap:14px}.header-pill{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:99px;padding:9px 14px;font-size:12px;font-weight:750;color:var(--cocoa);background:#faf6f1}.header-mark{font-size:12px;color:var(--muted)}
+    .layout{display:grid;grid-template-columns:450px minmax(0,1fr);min-height:0;flex:1}.sidebar{height:calc(100dvh - 82px);min-height:650px;display:flex;flex-direction:column;background:var(--cream);border-right:1px solid var(--line);min-width:0}.controls{padding:24px 24px 16px;border-bottom:1px solid var(--line);flex-shrink:0}.eyebrow{font-size:11px;font-weight:800;letter-spacing:.19em;color:#9f8067;text-transform:uppercase}.hero{font-size:27px;font-weight:850;line-height:1.16;letter-spacing:-1.25px;margin:9px 0 7px}.sub{color:#827469;line-height:1.6;font-size:13px;margin:0 0 19px}.field-label{font-size:11px;font-weight:850;color:#605044;letter-spacing:.065em;text-transform:uppercase;margin-bottom:9px;display:block}
+    .search-row{display:flex;gap:8px}.search{display:flex;align-items:center;flex:1;gap:9px;min-width:0;padding:0 12px;background:#fff;border:1px solid #d8c9bb;border-radius:13px;transition:border .15s}.search:focus-within{border-color:var(--cocoa)}.search svg{flex-shrink:0;color:var(--latte)}.search input{min-width:0;width:100%;height:46px;border:0;outline:0;background:transparent;color:var(--ink);font-size:14px}.search input::placeholder{color:#a99a8e}.icon-btn{height:47px;width:48px;border:1px solid var(--line);border-radius:13px;background:var(--pale);color:var(--brown);display:grid;place-items:center}.icon-btn:hover{background:var(--sand)}
+    .quick{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:11px 0 18px}.quick::-webkit-scrollbar{display:none}.quick span{color:var(--muted);font-size:11px;white-space:nowrap;margin-right:4px}.quick button{white-space:nowrap;border:none;padding:6px 11px;border-radius:100px;background:#f0e8df;color:#695343;font-size:11px;font-weight:750}.quick button:hover{background:var(--sand)}
+    .sortline{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px}.mini-link{border:0;background:none;color:#927459;text-decoration:underline;text-underline-offset:3px;font-weight:700;font-size:11px;padding:5px}
+    .segments{display:flex;border-radius:12px;padding:4px;background:#efe6dd;gap:4px;margin-bottom:14px}.segments button{width:33.33%;background:transparent;border:0;border-radius:9px;padding:9px 8px;font-size:12px;font-weight:800;color:#826f61}.segments button[aria-pressed="true"]{background:#fff;box-shadow:0 2px 9px #5e4a341a;color:var(--brown)}
+    .filter-wrap{display:flex;gap:7px;flex-wrap:wrap;max-height:132px;overflow:auto;padding-bottom:3px}.chip{background:#fff;color:#766253;border:1px solid #e5d9cc;border-radius:100px;padding:8px 10px;font-size:11px;font-weight:750;display:flex;align-items:center;gap:5px;white-space:nowrap}.chip:hover{background:#f6eee6}.chip.active{background:var(--brown);border-color:var(--brown);color:#fff}.chip .check{width:13px;height:13px;border:1.5px solid currentColor;border-radius:4px;display:grid;place-items:center;line-height:1;font-size:10px}.chip.active .check:after{content:'✓'}
+    .select-line{display:flex;gap:9px;margin-top:14px}.select-box{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}.select-box label{font-size:10px;color:#968778;font-weight:750}.select-box select{width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:12px}
+    .results{padding:15px 19px 24px;overflow:auto;overscroll-behavior:contain;flex:1;min-height:120px}.list-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 4px 14px}.list-heading strong{font-size:13px}.list-heading small{font-size:11px;color:var(--muted)}
+    .place-card{min-width:0;max-width:100%;overflow:hidden;background:#fff;border:1px solid #e7dcd1;border-radius:16px;padding:15px;margin-bottom:11px;box-shadow:0 2px 9px rgba(56,36,22,.03);transition:box-shadow .16s,border-color .16s}.place-card:hover,.place-card.selected{border-color:#b89b80;box-shadow:var(--shadow)}.card-top{display:flex;gap:11px;align-items:flex-start}.icon-tile{width:40px;height:40px;flex:0 0 40px;background:#f1e8de;border-radius:13px;display:grid;place-items:center;color:var(--brown)}.icon-tile.shower{background:#e8ebe5;color:#54634d}.card-main{flex:1;min-width:0}.place-title{font-weight:825;font-size:14px;margin:0 0 5px;line-height:1.4;overflow-wrap:anywhere}.meta{color:#968676;font-size:11px;line-height:1.45}.tagbar{display:flex;gap:5px;flex-wrap:wrap;margin:13px 0 14px}.tag{border-radius:6px;padding:5px 8px;font-size:10px;font-weight:800;background:#f2eae1;color:#765f4e}.tag.good{background:#e7eee6;color:#537153}.tag.warn{background:#f6ede0;color:#956846}.tag.unknown{background:#f4f1ed;color:#93867a}.tag.mute{background:#eee9e4;color:#84776a}
+    .place-address{display:flex;align-items:flex-start;gap:6px;margin:5px 0 3px;font-weight:750;font-size:12px;line-height:1.5;color:#614833;overflow-wrap:anywhere}
+    .place-address svg{flex:0 0 15px;width:15px;height:15px;margin-top:2px;color:#9a7559}
+    .place-address.partial{color:#786453}.place-address.approx{color:#6c584a}.place-address.missing{color:#998679;font-weight:650}
+    .place-context{display:flex;align-items:baseline;gap:5px;margin:7px 0 3px;color:#76563f;font-size:11px;font-weight:720;line-height:1.5;overflow-wrap:anywhere}.place-context svg{flex-shrink:0}.place-distance{font-size:11px;line-height:1.5;color:#958677;margin-top:4px}
+    .place-coordinates{font-size:10px;color:#9b8b7e;margin-top:1px;font-variant-numeric:tabular-nums}
+    .address-lookup{display:inline-flex;margin-top:5px;padding:3px 0;border:0;background:transparent;color:#876040;text-decoration:underline;text-underline-offset:3px;font-size:10px;font-weight:800;text-align:left}
+    .address-lookup:disabled{color:#a79a8e;text-decoration:none;cursor:wait}
+    .amenities{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 11px}
+    .amenity{display:inline-flex;align-items:center;gap:5px;border:1px solid #e0d2c4;border-radius:8px;padding:6px 8px;background:#f6eee5;color:#5c4230;font-size:11px;font-weight:800;line-height:1}
+    .amenity.shower{background:#e8eee9;border-color:#d6e4d8;color:#476851}
+    .amenity.wheelchair{background:#e7eff4;border-color:#d4e1ec;color:#476878}
+    .amenity svg{height:16px;width:16px;flex-shrink:0}
+    .card-actions{display:flex;gap:7px;width:100%;min-width:0}.card-actions > button{min-width:0;max-width:100%;flex-shrink:1;white-space:normal;text-align:center;overflow-wrap:anywhere}.primary{display:flex;align-items:center;justify-content:center;gap:8px;min-height:36px;border:0;background:var(--brown);color:#fff;border-radius:9px;font-size:12px;font-weight:850;padding:0 14px;text-decoration:none;flex:1}.primary:hover{background:#66503f}.secondary{display:flex;align-items:center;justify-content:center;gap:7px;min-height:36px;border:1px solid var(--line);background:#fff;border-radius:9px;color:var(--brown);font-weight:800;font-size:12px;padding:0 12px}.secondary:hover{background:#f8f1eb}.save{width:37px;padding:0;flex:0 0 37px}.save.active{color:#9e7250;background:#f6ede5}
+    .map-wrap{height:calc(100dvh - 82px);min-height:650px;position:relative;background:#eae3d7;overflow:hidden;isolation:isolate}.map{position:absolute;inset:0;width:100%;height:100%;z-index:0}.leaflet-container{background:#eae3d7;color-scheme:only light}.leaflet-tile{max-width:none!important;max-height:none!important}.map-toolbar{position:absolute;top:22px;right:22px;display:flex;flex-direction:column;gap:9px;z-index:401;max-width:calc(100% - 44px)}.map-btn{border:1px solid #d9cbbd;background:#fff;box-shadow:0 6px 22px #523b2530;border-radius:11px;padding:11px 14px;color:var(--brown);font-weight:800;font-size:12px;display:flex;align-items:center;gap:8px;justify-content:center}.map-btn:hover{background:#f6eee6}.map-btn.dark{background:var(--brown);color:#fff;border-color:var(--brown)}.map-btn.dark:hover{background:#604735}.map-overlay{position:absolute;top:22px;left:22px;z-index:400;background:#fff;border-radius:11px;box-shadow:var(--shadow);padding:10px 13px;font-size:11px;font-weight:750;color:#68574b;display:flex;gap:8px;align-items:center;max-width:calc(100% - 180px)}.dot{display:inline-block;width:8px;height:8px;background:#63876a;border-radius:50%;flex:0 0 8px}.dot.loading{background:#c4a06e;animation:pulse 1.2s infinite}.dot.error{background:#b56d55}@keyframes pulse{50%{opacity:.35}}
+    .view-switch{display:none;gap:5px;padding:10px 15px;background:var(--cream);border-bottom:1px solid var(--line)}
+    .view-switch button{border:0;background:#f1e8df;color:#695849;padding:10px 14px;border-radius:9px;font-weight:800;flex:1;font-size:12px}
+    .view-switch button[aria-pressed="true"]{background:var(--brown);color:#fff}
+    .view-map-button{display:none}.marker-summary{position:absolute;top:16px;left:15px;z-index:450;background:rgba(253,251,248,.96);color:var(--brown);border:1px solid #dccbbb;border-radius:11px;padding:9px 11px;font-size:12px;font-weight:800;box-shadow:0 3px 12px #0001;max-width:calc(100% - 180px)}.marker-summary[hidden]{display:none!important}.results-loading{font-size:11px;background:#f4ebe0;border:1px solid #e4d3c3;padding:10px 12px;border-radius:10px;margin-bottom:12px;color:#72533a;font-weight:700}
+    .foot-note{position:absolute;bottom:28px;left:22px;z-index:400;pointer-events:none;background:rgba(255,252,248,.93);border-radius:9px;color:#8d7d70;box-shadow:0 2px 9px #0001;font-size:10px;line-height:1.4;padding:9px 11px;max-width:255px}.pin{height:34px;width:34px;border-radius:12px 12px 12px 4px;display:grid;place-items:center;background:#4c382d;color:#fff;border:2px solid #fff;box-shadow:0 2px 11px #0004;transform:rotate(-45deg)}.pin>span{transform:rotate(45deg);font-size:11px;font-weight:900}.pin.shower{background:#66826b}.pin.free{background:#5d7d61}.user-dot{background:#547fa5;width:17px;height:17px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 5px #547fa546,0 3px 10px #0004}
+    .empty{text-align:center;border:1px dashed #d7c5b4;border-radius:17px;background:linear-gradient(180deg,#faf5ef,#fff);padding:28px 20px;margin:10px 2px 0}.empty-icon{margin:auto auto 15px;width:53px;height:53px;display:grid;place-items:center;background:#efe2d5;color:#6e5140;border-radius:17px}.empty h3{margin:0 0 9px;font-size:15px}.empty p{line-height:1.6;font-size:12px;color:#887568;margin:0 0 15px}.empty button{border:0;border-radius:9px;padding:10px 14px;background:var(--brown);color:#fff;font-weight:800;font-size:12px}.skeleton{background:linear-gradient(100deg,#f2ede7 40%,#fdfaf7 50%,#f2ede7 60%);background-size:200% 100%;animation:skeleton 1.2s infinite;height:110px;border-radius:14px;margin-bottom:12px}@keyframes skeleton{to{background-position-x:-200%}}
+    .modal-back{position:fixed;inset:0;background:#21160f91;z-index:1100;display:none;align-items:center;justify-content:center;padding:15px}.modal-back.open{display:flex}.modal{width:min(495px,100%);max-height:min(90dvh,800px);display:flex;flex-direction:column;background:var(--cream);border-radius:20px;overflow:hidden;box-shadow:0 30px 80px #1d110c44}.modal-head{display:flex;align-items:flex-start;gap:16px;justify-content:space-between;padding:22px 22px 15px;border-bottom:1px solid var(--line)}.modal-head h2{font-size:21px;line-height:1.25;letter-spacing:-.6px;margin:6px 0 5px}.modal-scroll{overflow:auto;padding:16px 22px 22px}.detail-row{display:flex;align-items:center;gap:12px;border-bottom:1px solid #eee5dc;padding:11px 0;font-size:12px}.detail-row strong{margin-left:auto;text-align:right;max-width:60%;font-size:12px}.val-yes{color:var(--positive)}.val-no{color:var(--negative)}.val-unknown{color:#928578}.modal-actions{display:flex;gap:9px;margin-top:20px}.modal-actions>*{flex:1}.note{font-size:11px;line-height:1.7;color:#948477;margin-top:15px}.credit{font-size:11px;line-height:1.65;color:#8c7a6c;border-top:1px solid var(--line);padding:12px 24px;flex-shrink:0;background:#fdfaf6}.credit a{color:#816048;font-weight:750}
+    .tile-warning{position:absolute;bottom:62px;left:12px;right:12px;z-index:450;background:#fffaf3;border:1px solid #d2b99e;border-radius:13px;box-shadow:0 6px 24px #2e211c42;color:#49372c;padding:12px;font-size:12px;line-height:1.45;max-width:350px}
+    .tile-warning[hidden]{display:none!important}.tile-warning strong{display:block;margin-bottom:4px}.tile-warning a{display:inline-block;color:#49372c;font-weight:800;margin-top:6px;text-decoration:underline;text-underline-offset:3px}
+    .leaflet-popup-content-wrapper{border-radius:13px;box-shadow:0 7px 30px #4f382533}.leaflet-popup-content{font-family:inherit}.leaflet-container a.leaflet-popup-close-button{color:#7d6451}.leaflet-control-zoom a{color:var(--brown)}
+    @media(max-width:1050px){.layout{grid-template-columns:410px minmax(0,1fr)}.controls{padding:20px 18px 14px}.results{padding:15px}.map-overlay{display:none}}
+    @media(max-width:760px){header{height:73px;padding:11px 15px}.brand{gap:11px}.logo{height:43px;width:43px;border-radius:12px;font-size:14px}.logo:after{left:12px}.brand strong{font-size:21px}.brand small{font-size:10px}.header-pill{font-size:10px;padding:8px}.header-mark{display:none}.layout{display:flex;flex-direction:column}.sidebar{display:contents}.controls{order:0;border-bottom:1px solid var(--line);padding:18px 15px 13px}.hero{font-size:22px;margin-top:7px}.sub{font-size:12px;margin-bottom:13px}.search input{height:42px}.icon-btn{height:43px;width:44px}.quick{margin:9px 0 13px}.segments{margin-bottom:12px}.filter-wrap{max-height:none;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:7px}.filter-wrap::-webkit-scrollbar{display:none}.select-line{margin-top:7px}.view-switch{display:flex;order:1}.results{order:2}.map-wrap{order:2;height:min(62dvh,640px);min-height:405px;max-height:none;width:100%;flex:0 0 auto}.shell[data-mobile-view="list"] .map-wrap{position:absolute;left:0;top:0;width:100%;height:440px;min-height:440px;visibility:hidden;pointer-events:none;z-index:-1}.shell[data-mobile-view="map"] .results{display:none}.shell[data-mobile-view="map"] .map-wrap{position:relative;visibility:visible;pointer-events:auto;z-index:auto}.view-map-button{display:inline-flex}.map-toolbar{right:12px;top:12px;gap:6px}.map-btn{padding:9px 10px;font-size:11px}.foot-note{left:10px;bottom:23px;font-size:9px;padding:7px;max-width:210px}.results{order:2;overflow:visible;padding:15px 15px 30px;min-height:300px;background:var(--cream)}.credit{order:4;padding:15px;font-size:10px}.list-heading{padding-top:0}.place-card{margin-bottom:10px} .map-overlay{display:none}}
+    @media(max-width:760px){
+      .place-card{padding:14px 13px 13px;border-radius:16px}
+      .card-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 43px;gap:8px;margin-top:3px}
+      .card-actions .primary{grid-column:1 / -1;grid-row:1;min-height:45px;background:#4b372a;color:white;font-size:13px;letter-spacing:.01em}
+      .card-actions [data-action="detail"]{grid-column:1;grid-row:2}
+      .card-actions [data-action="map"]{grid-column:2;grid-row:2}
+      .card-actions [data-action="fav"]{grid-column:3;grid-row:2}
+      .card-actions .secondary{min-height:43px;font-size:11px;padding:0 6px;background:#faf6f1;color:#5a4232}
+      .card-actions .save{width:100%;min-width:0;flex:unset;font-size:20px}
+    }
+    @media(max-width:400px){.share-app{padding:9px 10px;font-size:11px}.header-pill{display:none}.select-line{gap:6px}.chip{padding:8px}.foot-note{max-width:160px}}
+
+    .nav-back{position:fixed;inset:0;background:#21160fb8;z-index:1400;display:none;align-items:center;justify-content:center;padding:16px}.nav-back.open{display:flex}
+    .nav-panel{width:min(440px,100%);max-height:90dvh;overflow-y:auto;background:var(--cream);border:1px solid #d8c8b8;border-radius:19px;box-shadow:0 25px 80px #20140d64;padding:21px}
+    .nav-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.nav-top h2{font-size:23px;margin:6px 0 5px;line-height:1.2}.nav-place{font-size:13px;color:#816e5e;margin:2px 0 16px;line-height:1.4;overflow-wrap:anywhere}
+    .nav-option{display:flex;align-items:center;gap:11px;width:100%;padding:15px 14px;border-radius:12px;border:1px solid #dfd0c2;background:white;color:var(--brown);text-decoration:none;margin-top:9px;font-size:15px;font-weight:830;min-height:53px;justify-content:space-between}
+    .nav-option:first-of-type{background:var(--brown);color:white;border-color:var(--brown)}.nav-option:hover{filter:brightness(.96)}.nav-option small{font-size:11px;font-weight:600;color:inherit;opacity:.7}
+    .nav-help{color:#887565;font-size:11px;line-height:1.65;margin:15px 0 0}.nav-copy{border:none;background:transparent;color:#70533d;text-decoration:underline;font-size:12px;padding:9px 0;cursor:pointer}
+    body.nav-open{overflow:hidden}
+   .fallback-map-link{display:inline-block;margin-top:9px;padding:12px 14px;border-radius:14px;background:#f4ede2;color:#4d382c;font-weight:750;text-decoration:none;border:1px solid #cbb9a4}
+
+    /* Nezávislé základní styly Leaflet: i pokud CDN se stylesheetem není dostupné. */
+    .leaflet-container{position:relative;overflow:hidden;outline:0;touch-action:pan-x pan-y;background:#eae3d7}
+    .leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,
+    .leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{
+      position:absolute;left:0;top:0
+    }
+    .leaflet-container .leaflet-pane{z-index:400}
+    .leaflet-container .leaflet-tile-pane{z-index:200}
+    .leaflet-container .leaflet-overlay-pane{z-index:400}
+    .leaflet-container .leaflet-shadow-pane{z-index:500}
+    .leaflet-container .leaflet-marker-pane{z-index:600}
+    .leaflet-container .leaflet-tooltip-pane{z-index:650}
+    .leaflet-container .leaflet-popup-pane{z-index:700}
+    .leaflet-tile{visibility:hidden;user-select:none;-webkit-user-drag:none}
+    .leaflet-tile-loaded{visibility:inherit}
+    .leaflet-container img{max-width:none!important;max-height:none!important}
+    .leaflet-zoom-animated{transform-origin:0 0}
+    .leaflet-container .leaflet-map-pane,.leaflet-container .leaflet-tile-pane,
+    .leaflet-container .leaflet-pane{pointer-events:auto}
+    .leaflet-container .leaflet-control-container .leaflet-top,
+    .leaflet-container .leaflet-control-container .leaflet-bottom{position:absolute;z-index:1000;pointer-events:none}
+    .leaflet-container .leaflet-top{top:0}.leaflet-container .leaflet-bottom{bottom:0}
+    .leaflet-container .leaflet-left{left:0}.leaflet-container .leaflet-right{right:0}
+    .leaflet-container .leaflet-control{position:relative;z-index:800;pointer-events:auto;clear:both;margin:10px}
+    .leaflet-container .leaflet-control-zoom{border-radius:6px;box-shadow:0 2px 10px #0002;overflow:hidden}
+    .leaflet-container .leaflet-control-zoom a{display:block;width:30px;height:30px;line-height:30px;
+      text-align:center;text-decoration:none;background:#fff;color:#4b372a;border-bottom:1px solid #ddd;
+      font-family:Arial,sans-serif;font-weight:bold;font-size:19px}
+    .leaflet-container .leaflet-control-attribution{background:#ffffffcf;padding:1px 5px;
+      font-size:10px;line-height:1.4;white-space:normal;max-width:100%}
+    .leaflet-container .leaflet-control-attribution a{color:#695040}
+    .leaflet-container .leaflet-marker-icon{display:block}
+    .leaflet-container .leaflet-popup{position:absolute;text-align:center;margin-bottom:20px}
+    .leaflet-container .leaflet-popup-content-wrapper{background:white;padding:1px;min-width:120px}
+    .leaflet-container .leaflet-popup-content{margin:13px;line-height:1.5;text-align:left}
+    .leaflet-container .leaflet-popup-tip-container{position:absolute;left:50%;margin-left:-20px;width:40px;height:20px;overflow:hidden}
+    .leaflet-container .leaflet-popup-tip{width:17px;height:17px;background:white;transform:rotate(45deg);margin:-9px auto 0}
+    .leaflet-container .leaflet-popup-close-button{position:absolute;right:6px;top:3px;z-index:1;
+      font-weight:800;font-size:18px;text-decoration:none}
+    .leaflet-container .leaflet-interactive{cursor:pointer}
+    .geo-toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));
+      transform:translateX(-50%);z-index:1350;background:#fff9f1;color:#4b372a;
+      border:1px solid #bca58b;border-radius:12px;box-shadow:0 12px 32px #130c0955;
+      padding:12px 14px;font-size:13px;font-weight:750;line-height:1.4;
+      width:max-content;max-width:calc(100vw - 24px);text-align:center;pointer-events:none}
+    .geo-toast[hidden]{display:none!important}
+    .map-user-badge{position:absolute;bottom:60px;right:12px;z-index:420;
+      background:#fdfaf4;border:1px solid #d4beaa;border-radius:9px;padding:8px 10px;
+      max-width:225px;font-size:11px;line-height:1.35;font-weight:750;color:#3f362d;
+      box-shadow:0 3px 12px #2b1d0c22}
+    .map-user-badge[hidden]{display:none!important}
+    .user-dot{background:#247ab3;width:20px;height:20px;border-radius:50%;border:4px solid white;
+      box-shadow:0 0 0 5px #247ab366,0 3px 14px #0005}
+    @media(max-width:760px){.map-user-badge{bottom:74px;right:10px;max-width:170px}.geo-toast{bottom:calc(65px + env(safe-area-inset-bottom,0px))}}
+</style>
+</head>
+<body>
+<div class="shell" id="shell" data-mobile-view="list">
+<header>
+  <div class="brand"><div class="logo">WC</div><div><strong>PAUZA<span style="color:#b39173">.</span></strong><small>WC & sprchy na cestách</small></div></div>
+  <div class="header-right"><button class="share-app" id="shareApp" type="button" title="Poslat odkaz přes WhatsApp nebo jinou aplikaci" aria-label="Sdílet aplikaci"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.3M8.7 13.3l6.6 4.3"/></svg>Sdílet</button><div class="header-pill"><span class="dot"></span> Databáze WC pro ČR</div><span class="header-mark">Najdi zázemí. Pokračuj v cestě.</span></div>
+</header>
+<main class="layout">
+<section class="sidebar" aria-label="Hledání a výsledky">
+  <div class="controls">
+    <div class="eyebrow">Tvůj průvodce po cestách</div>
+    <h1 class="hero">Zastav tam, kde<br>to má smysl.</h1>
+    <p class="sub">WC, sprchy a zázemí pro řidiče, kurýry i cestovatele. Bez zbytečného hledání.</p>
+    <label class="field-label" for="cityInput">Kde hledáš?</label>
+    <form id="cityForm" class="search-row">
+      <label class="search" for="cityInput"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg><input id="cityInput" type="search" placeholder="Zadej město nebo obec" required autocomplete="off" aria-label="Město nebo obec"></label>
+      <button class="icon-btn" type="submit" title="Hledat město" aria-label="Hledat město"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
+      <button id="geolocate" class="icon-btn" type="button" aria-label="Použít moji polohu" title="Moje poloha"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="9"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3"/></svg></button>
+    </form>
+    <div class="quick"><span>Rychle:</span><button type="button" data-city="Praha" aria-label="Vyhledat WC ve městě Praha">Praha</button><button type="button" data-city="Kladno" aria-label="Vyhledat WC ve městě Kladno">Kladno</button><button type="button" data-city="Benešov" aria-label="Vyhledat WC ve městě Benešov">Benešov</button><button type="button" data-city="Pardubice" aria-label="Vyhledat WC ve městě Pardubice">Pardubice</button><button type="button" data-city="Karlovy Vary" aria-label="Vyhledat WC ve městě Karlovy Vary">Karlovy Vary</button></div>
+    <div class="sortline"><label class="field-label" style="margin:0">Co potřebuješ?</label><button id="clearFilters" class="mini-link" type="button">Zrušit filtry</button></div>
+    <div class="segments" role="group" aria-label="Typ zařízení"><button data-kind="all" aria-pressed="true">Všechno</button><button data-kind="wc" aria-pressed="false">WC</button><button data-kind="shower" aria-pressed="false">Sprchy</button></div>
+    <div class="filter-wrap" id="chips" role="group" aria-label="Filtry">
+      <button class="chip" data-filter="wheelchair" aria-pressed="false"><span class="check"></span>Bezbariérové</button>
+      <button class="chip" data-filter="shower" aria-pressed="false"><span class="check"></span>Se sprchou</button>
+      <button class="chip" data-filter="allDay" aria-pressed="false"><span class="check"></span>Nonstop</button>
+      <button class="chip" data-filter="truck" aria-pressed="false"><span class="check"></span>Pro kamiony</button>
+      <button class="chip" data-filter="baby" aria-pressed="false"><span class="check"></span>Přebalování</button>
+      <button class="chip" data-filter="water" aria-pressed="false"><span class="check"></span>Pitná voda</button>
+      <button class="chip" data-filter="public" aria-pressed="false"><span class="check"></span>Bez nákupu</button>
+      <button class="chip" data-filter="favorites" aria-pressed="false"><span class="check"></span>Uložená místa</button>
+    </div>
+    <div class="select-line"><div class="select-box"><label for="feeFilter">Poplatek</label><select id="feeFilter"><option value="all">Libovolný / neznámý</option><option value="free">Pouze zdarma</option><option value="paid">Pouze placené</option><option value="unknown">Cena neuvedena</option></select></div><div class="select-box"><label for="sortBy">Seřadit podle</label><select id="sortBy"><option value="distance">Nejbližší k bodu na mapě</option><option value="name">Názvu</option><option value="free">Zdarma napřed</option></select></div></div>
+  </div>
+  <div class="view-switch" role="group" aria-label="Zobrazení výsledků"><button id="viewList" type="button" aria-pressed="true">☰ Seznam míst</button><button id="viewMap" type="button" aria-pressed="false">▧ Mapa míst</button></div>
+  <div class="results" id="results" aria-live="polite"><div class="list-heading"><strong>Prozkoumej místa</strong><small>Zvol město nebo polohu</small></div><div class="empty"><div class="empty-icon"><svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.7"/></svg></div><h3>Kam dnes vyrážíš?</h3><p>Zadej město, použij aktuální polohu nebo přibliž mapu a klikni na „Načíst oblast“.</p><button onclick="document.getElementById('cityInput').focus()">Najít místa</button></div></div>
+  <div class="credit">Místa v rychlé databázi jsou výběrem z OpenStreetMap, nikoliv ověřeným seznamem všech veřejných WC. V první databázové verzi jsou zahrnuty zejména bodové záznamy; objekty zakreslené jen jako plochy mohou chybět. Aktualizace probíhá při nové sestavě webu. Výsledky pokrývají právě načtenou oblast, ne nutně celé město. Pro další místa posuň mapu a zvol „Načíst oblast“. Informace pocházejí z <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (© přispěvatelé, ODbL). Neznámý údaj není automaticky „ne“. Ceny, dostupnost a otevírací doba se mohou změnit.</div>
+</section>
+<section class="map-wrap" aria-label="Mapa zařízení">
+  <div id="map" class="map"></div>
+  <div id="markerSummary" class="marker-summary" role="status" hidden></div>
+  <div id="mapUserBadge" class="map-user-badge" role="status" hidden></div>
+  <div class="tile-warning" id="tileWarning" role="status" hidden><strong>Mapový podklad není kompletní</strong>Část mapy se nepodařilo načíst. Můžeš otevřít oblast v externí mapě.<div><a id="tileFallbackLink" target="_blank" rel="noopener noreferrer" href="https://www.openstreetmap.org/">Otevřít mapu ↗</a></div></div>
+  <div class="map-overlay"><span id="statusDot" class="dot"></span><span id="mapStatus">Vyber oblast pro načtení míst</span></div>
+  <div class="map-toolbar"><button id="loadArea" class="map-btn dark" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h6M20 17v3h-6M4 4l5 5m11 11-5-5M20 7V4h-6M4 17v3h6M20 4l-5 5M4 20l5-5"/></svg>Načíst oblast</button><button id="mapLocate" class="map-btn" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/></svg>Moje poloha</button></div>
+  <div class="foot-note">Pouze místa zaznamenaná v mapových datech. Pro navigaci kamionem ověř omezení výšky, hmotnosti a průjezdu.</div>
+</section>
+</main>
+<div id="geoToast" class="geo-toast" role="status" aria-live="polite" hidden></div>
+</div>
+<div id="modalBack" class="modal-back" aria-hidden="true"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><div><div class="eyebrow">Detail zázemí</div><h2 id="modalTitle">Místo</h2><div class="meta" id="modalSubtitle"></div></div><button id="closeModal" class="icon-btn" type="button" aria-label="Zavřít" style="flex-shrink:0">✕</button></div><div class="modal-scroll"><div id="modalRows"></div><div class="modal-actions"><button id="modalNav" type="button" class="primary">Navigovat ↗</button><button id="modalFav" class="secondary" type="button">Uložit</button></div><p class="note">Vyber Google Maps, Mapy.com nebo Waze. Při dostupné poloze může mobil nabídnout okamžité zahájení navigace. U plošných objektů mohou souřadnice ukazovat na střed, ne na příjezd. Nezohledňuje automaticky omezení pro nákladní vozidla. Informace doplňuje komunita OpenStreetMap, proto nemusí být úplné.</p><p class="note"><a id="osmSource" href="#" target="_blank" rel="noopener noreferrer">Zobrazit záznam a opravit informace v OpenStreetMap ↗</a></p></div></div></div>
+<div id="navBack" class="nav-back" aria-hidden="true">
+ <section class="nav-panel" role="dialog" aria-modal="true" aria-labelledby="navTitle">
+  <div class="nav-top"><div><div class="eyebrow">Vyber navigaci</div><h2 id="navTitle">Jak chceš jet?</h2></div><button type="button" class="icon-btn" id="closeNav" aria-label="Zavřít výběr navigace">✕</button></div>
+  <div id="navPlace" class="nav-place"></div>
+  <a id="navGoogle" class="nav-option" href="#">Google Maps <small>Autem ↗</small></a>
+  <a id="navMapy" class="nav-option" href="#">Mapy.com <small>Autem ↗</small></a>
+  <a id="navWaze" class="nav-option" href="#">Waze <small>Autem ↗</small></a>
+  <a id="navWalk" class="nav-option" href="#">Google Maps <small>Pěšky ↗</small></a>
+  <button type="button" class="nav-copy" id="copyGPS">Zkopírovat souřadnice cíle</button>
+  <p class="nav-help">Volby předávají souřadnice vybraného místa do navigace. Aplikace nezná omezení pro kamiony ani přesný vjezd. Pokud používáš WhatsApp a mapa se neotevře, otevři PAUZU v běžném prohlížeči (Chrome nebo Safari). Hlasovou navigaci případně spusť v mapové aplikaci.</p>
+ </section>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+(()=>{'use strict';
+  const $=id=>document.getElementById(id);
+  const state={items:[],filter:new Set(),kind:'all',anchor:[49.95,15.35],user:null,selected:null,loading:false,loaded:false,error:null,requestToken:0,searchToken:0,placeLabel:"",favorites:new Set(),map:null,markers:null,markerIndex:new Map(),userMarker:null,contextPlaces:[],contextToken:0,accuracyCircle:null,locating:false};
+  try{state.favorites=new Set(JSON.parse(localStorage.getItem('pauza-favorites-v1')||'[]'))}catch{}
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const isYes=v=>['yes','designated','official','public'].includes(String(v||'').toLowerCase());
+  const isNo=v=>['no','private','restricted'].includes(String(v||'').toLowerCase());
+  const haversine=(a,b)=>{const R=6371,dLat=(b[0]-a[0])*Math.PI/180,dLng=(b[1]-a[1])*Math.PI/180,x=Math.sin(dLat/2)**2+Math.cos(a[0]*Math.PI/180)*Math.cos(b[0]*Math.PI/180)*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))};
+  const distanceLabel=km=>km<1?Math.round(km*1000)+' m':km<10?km.toFixed(1).replace('.',',')+' km':Math.round(km)+' km';
+  const distanceTo=p=>haversine(state.user||state.anchor,[p.lat,p.lon]);
+  // Universal HTTPS deep links: no target=_blank or window.open; in-app browsers often block them.
+  const navUrl=(p,mode='driving')=>'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(p.lat+','+p.lon)+'&travelmode='+mode+'&dir_action=navigate';
+  const mapyUrl=p=>'https://mapy.com/fnc/v1/route?end='+encodeURIComponent(p.lon+','+p.lat)+'&routeType=car_fast&navigate=true';
+  const wazeUrl=p=>'https://waze.com/ul?ll='+encodeURIComponent(p.lat+','+p.lon)+'&navigate=yes';
+  let lastNavButton=null,activeNavPoint=null;
+  function openNav(p,trigger=null){
+    if(!Number.isFinite(p.lat)||!Number.isFinite(p.lon)||Math.abs(p.lat)>90||Math.abs(p.lon)>180){alert('U tohoto místa nejsou platné souřadnice pro navigaci.');return}
+    activeNavPoint=p;lastNavButton=trigger||document.activeElement;$('copyGPS').textContent='Zkopírovat souřadnice cíle';
+    $('navPlace').textContent=p.name+' · '+p.lat.toFixed(6)+', '+p.lon.toFixed(6);
+    $('navGoogle').href=navUrl(p);
+    $('navMapy').href=mapyUrl(p);
+    $('navWaze').href=wazeUrl(p);
+    $('navWalk').href=navUrl(p,'walking');
+    $('navBack').classList.add('open');$('navBack').setAttribute('aria-hidden','false');
+    document.body.classList.add('nav-open');$('navGoogle').focus();
+  }
+  function closeNav(){
+    $('navBack').classList.remove('open');$('navBack').setAttribute('aria-hidden','true');
+    document.body.classList.remove('nav-open');
+    if(lastNavButton?.isConnected)lastNavButton.focus();
+  }
+  $('closeNav').addEventListener('click',closeNav);
+  $('navBack').addEventListener('click',e=>{if(e.target===$('navBack'))closeNav()});
+  $('copyGPS').addEventListener('click',async()=>{
+    if(!activeNavPoint)return;
+    const gps=activeNavPoint.lat.toFixed(6)+', '+activeNavPoint.lon.toFixed(6);
+    try{await navigator.clipboard.writeText(gps);$('copyGPS').textContent='Souřadnice zkopírovány ✓'}
+    catch{prompt('Zkopíruj souřadnice:',gps)}
+  });
+  async function shareApp(){
+    const url=window.location.href.split('#')[0];
+    const valid=window.location.protocol==='https:' || window.location.protocol==='http:';
+    if(!valid || ['localhost','127.0.0.1','0.0.0.0'].includes(window.location.hostname)){
+      alert('Aplikaci je nejdřív potřeba zveřejnit na webu. Místní soubor nejde poslat jako funkční veřejný odkaz.');return;
+    }
+    const message='Vyzkoušej PAUZU – mapa WC a sprch na cestách';
+    if(navigator.share){
+      try{await navigator.share({title:'PAUZA – WC a sprchy na cestách',text:message,url});return}
+      catch(err){if(err && err.name==='AbortError')return}
+    }
+    const whatsapp='https://wa.me/?text='+encodeURIComponent(message+' '+url);
+    const opened=window.open(whatsapp,'_blank','noopener,noreferrer');
+    if(!opened){
+      try{await navigator.clipboard.writeText(url);alert('Odkaz byl zkopírován. Můžeš ho vložit do WhatsAppu.')}
+      catch{prompt('Zkopíruj odkaz na aplikaci:',url)}
+    }
+  }
+  $('shareApp').addEventListener('click',shareApp);
+  function status(text,type='normal'){$('mapStatus').textContent=text;$('statusDot').className='dot'+(type==='loading'?' loading':type==='error'?' error':'')}
+  function feeState(t,group){let f=group?t['toilets:fee']:t.fee;let charge=group?t['toilets:charge']:t.charge;return {status:isYes(f)?'paid':f==='no'?'free':charge?'paid':'unknown',charge:charge&&charge!== 'yes'?charge:null}}
+  function osmAddress(t){
+    // OSM addresses may be attached to the facility, fuel station or rest area.
+    // Never infer the building number from its coordinates.
+    const street=String(t['addr:street']||t['contact:street']||'').trim();
+    const house=String(t['addr:housenumber']||t['contact:housenumber']||'').trim();
+    const place=String(t['addr:place']||t['contact:place']||'').trim();
+    const city=String(t['addr:city']||t['contact:city']||t['addr:municipality']||'').trim();
+    const zip=String(t['addr:postcode']||t['contact:postcode']||'').trim();
+    const main=[street||place,house].filter(Boolean).join(' ');
+    const region=[zip,city].filter(Boolean).join(' ');
+    const address=[main,region].filter((x,i)=>x&&(i===0||x!==main)).join(', ');
+    const kind=(street||place)&&house?'exact':address?'partial':'none';
+    return {address,addressKind:kind};
+  }
+  const addressText=p=>p.address || (state.placeLabel&&state.placeLabel!=='Moje okolí'?'Hledaná oblast: '+state.placeLabel:'Adresa v mapových datech neuvedena');
+  function addressLine(p){
+    const kind=p.addressKind||'none';
+    const label=kind==='exact'?'Adresa:':kind==='approx'?'Orientačně:':kind==='partial'?'Ulice / obec:':'';
+    const pin='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+    const line='<div class="place-address '+kind+'">'+pin+'<span>'+(label?'<b>'+esc(label)+'</b> ':'')+esc(addressText(p))+'</span></div>';
+    const gps='<div class="place-coordinates">GPS: '+p.lat.toFixed(5)+', '+p.lon.toFixed(5)+'</div>';
+    const lookup=(kind==='partial'||kind==='none')?'<button class="address-lookup" type="button" data-action="address" data-id="'+esc(p.id)+'" aria-label="Dohledat orientační adresu pro '+esc(p.name)+'">Dohledat orientační adresu ↗</button>':'';
+    return line+gps+lookup;
+  }
+  const ADDRESS_CACHE_PREFIX='pauza-address-v1-';
+  const resolvingAddresses=new Set();
+  let lastAddressLookupAt=0;
+  async function resolveAddress(p,button){
+    if(!p||!['partial','none'].includes(p.addressKind)||resolvingAddresses.has(p.id))return;
+    resolvingAddresses.add(p.id);button.disabled=true;button.textContent='Dohledávám adresu…';
+    const key=ADDRESS_CACHE_PREFIX+p.lat.toFixed(5)+','+p.lon.toFixed(5);
+    try{
+      let data=null;
+      try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved&&Date.now()-saved.at<30*86400000)data=saved.data}catch{}
+      if(!data){
+        // User-initiated lookup only. Avoid bulk reverse geocoding on page load.
+        const wait=Math.max(0,1350-(Date.now()-lastAddressLookupAt));
+        if(wait)await new Promise(r=>setTimeout(r,wait));
+        lastAddressLookupAt=Date.now();
+        const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);
+        try{
+          const url='https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&accept-language=cs&lat='+encodeURIComponent(p.lat)+'&lon='+encodeURIComponent(p.lon);
+          const response=await fetch(url,{signal:controller.signal,headers:{Accept:'application/json'}});
+          if(!response.ok)throw new Error('HTTP '+response.status);
+          data=await response.json();
+          try{localStorage.setItem(key,JSON.stringify({at:Date.now(),data}))}catch{}
+        }finally{clearTimeout(timeout)}
+      }
+      const a=data?.address||{};
+      const road=a.road||a.pedestrian||a.residential||a.square||a.footway||'';
+      const city=a.city||a.town||a.village||a.municipality||a.hamlet||a.suburb||'';
+      const street=[road,a.house_number].filter(Boolean).join(' ');
+      const candidate=[street,city].filter(Boolean).join(', ');
+      if(!candidate||(!road&&p.address))throw new Error('V mapě není přesnější adresa');
+      p.address=candidate;p.addressKind='approx';render();
+      if($('modalBack').classList.contains('open')&&state.selected===p.id)detail(p);
+    }catch(err){
+      button.disabled=false;button.textContent='Adresu nelze dohledat – zkus později';
+      button.title=String(err?.message||'');
+    }finally{resolvingAddresses.delete(p.id)}
+  }
+  function parsePoint(e){const t=e.tags||{},group=t.amenity!=='toilets'&&t.amenity!=='shower';const lat=e.lat??e.center?.lat,lon=e.lon??e.center?.lon;if(!Number.isFinite(lat)||!Number.isFinite(lon))return null;let hasWC=t.amenity==='toilets'||isYes(t.toilets);let hasShower=t.amenity==='shower'||isYes(t.shower)||isYes(t['toilets:shower']);if(!hasWC&&!hasShower)return null;
+    const access=group?(t['toilets:access']||t.access):(t.access||t['toilets:access']);if(isNo(access)||access==='employees'||access==='staff')return null;
+    const wheel=t['toilets:wheelchair']||(t.amenity==='toilets'?t.wheelchair:null);const fee=feeState(t,group);
+    const officialName=String(t['name:cs']||t.name||'').trim();
+    const operatorName=String(t.brand||t.operator||'').trim();
+    const placeType=t.amenity==='shower'?'Sprcha':t.amenity==='fuel'?'Čerpací stanice':t.highway==='services'?'Dálniční odpočívka':t.highway==='rest_area'?'Odpočívadlo':'Veřejné WC';
+    const generic=/^(veřejn[ée]\s+)?(wc|toalety|toilets?|záchod(y)?|sprcha|showers?)$/i;
+    const facilityName=officialName&&!generic.test(officialName)?officialName:operatorName;
+    let name=facilityName?(facilityName===placeType?facilityName:facilityName):placeType;
+    const {address,addressKind}=osmAddress(t);
+    const knownPublic=(t.amenity==='toilets'&&!access)||['yes','public','permissive','designated'].includes(access||'');
+    const truck=[t.hgv,t['hgv:access'],t['parking:hgv'],t.truck_parking,t['parking:truck']].some(isYes);
+    const hours=(group&&t['toilets:opening_hours'])||t.opening_hours||null;
+    return {id:e.type+'/'+e.id,osmType:e.type,osmId:e.id,lat,lon,name,hasOwnName:!!facilityName,nearbyName:null,nearbyDistance:null,address,addressKind,kind:t.amenity,hasWC,hasShower,wheel,wheelYes:isYes(wheel),baby:isYes(t['toilets:changing_table']||t.changing_table),water:isYes(t.drinking_water),truck,public:knownPublic,customers:access==='customers',access:access||null,fee:fee.status,charge:fee.charge,showerFee:t['shower:fee']||null,showerCharge:t['shower:charge']||(t.amenity==='shower'?t.charge:null)||null,hours,allDay:hours==='24/7',operator:t.operator||null,website:t.website||t['contact:website']||null,phone:t.phone||t['contact:phone']||null,source:t.source||null,lastCheck:t.check_date||null, osmUrl:'https://www.openstreetmap.org/'+e.type+'/'+e.id}
+  }
+  const CONTEXT_CACHE_PREFIX='pauza-context-v1-';
+  // A nearby named landmark does NOT prove that the WC belongs to it.
+  function contextualize(items,landmarks){
+    const named=landmarks.filter(x=>x.tags && (x.tags['name:cs']||x.tags.name) &&
+      Number.isFinite(x.lat??x.center?.lat) && Number.isFinite(x.lon??x.center?.lon));
+    for(const p of items){
+      p.nearbyName=null;p.nearbyDistance=null;
+      if(p.hasOwnName)continue;
+      let best=null;
+      for(const n of named){
+        if(n.type+'/'+n.id===p.id)continue;
+        const candidate=String(n.tags['name:cs']||n.tags.name).trim();
+        if(!candidate||/^(wc|toalety|toilets|záchody)$/i.test(candidate))continue;
+        const d=haversine([p.lat,p.lon],[n.lat??n.center.lat,n.lon??n.center.lon])*1000;
+        if(d<75&&(!best||d<best.d))best={name:candidate,d};
+      }
+      if(best){p.nearbyName=best.name;p.nearbyDistance=best.d/1000;}
+    }
+  }
+  function landmarkQuery(bbox){
+    const b='('+bbox+')';
+    return `[out:json][timeout:23];(nwr["amenity"~"^(fuel|restaurant|fast_food|cafe|parking|bus_station|hospital|library|townhall)$"]["name"]${b};nwr["shop"~"^(supermarket|mall|department_store)$"]["name"]${b};nwr["tourism"~"^(hotel|camp_site)$"]["name"]${b};nwr["highway"~"^(services|rest_area)$"]["name"]${b};);out center tags;`;
+  }
+  async function addNearbyNames(bbox,token){
+    if(token!==state.requestToken||!state.items.some(x=>!x.hasOwnName))return;
+    const box=bbox.split(',').map(Number);
+    const areaKm=((box[2]-box[0])*111)*((box[3]-box[1])*71);
+    if(!Number.isFinite(areaKm)||areaKm>175||areaKm<=0)return; // Avoid expensive city-wide enrichment.
+    const key=CONTEXT_CACHE_PREFIX+bbox;
+    let landmarks=null;
+    try{const cache=JSON.parse(localStorage.getItem(key)||'null');
+      if(cache&&Date.now()-cache.at<7*86400000&&Array.isArray(cache.elements))landmarks=cache.elements;
+    }catch{}
+    if(!landmarks){
+      try{
+        // Optional enrichment; never block the WC list. Small query and one endpoint.
+        const ctrl=new AbortController();const timeout=setTimeout(()=>ctrl.abort(),11500);
+        try{
+          const response=await fetch(endpoints[0]+'?data='+encodeURIComponent(landmarkQuery(bbox)),{signal:ctrl.signal,mode:'cors'});
+          if(!response.ok)throw Error('HTTP '+response.status);
+          const data=await response.json();
+          if(!Array.isArray(data.elements))throw Error('Neplatné mapové objekty');
+          landmarks=data.elements;
+          if(landmarks.length<=1500)try{localStorage.setItem(key,JSON.stringify({at:Date.now(),elements:landmarks}))}catch{}
+        }finally{clearTimeout(timeout)}
+      }catch{return}
+    }
+    if(token!==state.requestToken||!state.loaded||!Array.isArray(landmarks))return;
+    contextualize(state.items,landmarks);
+    render();
+  }
+  function colorTag(text,klass=''){return '<span class="tag '+klass+'">'+esc(text)+'</span>'}
+  function shortTags(p){const x=[];x.push(p.fee==='free'?colorTag('Zdarma','good'):p.fee==='paid'?colorTag(p.charge?('Poplatek '+p.charge):'Placené','warn'):colorTag('Cena neuvedena','unknown'));if(p.allDay)x.push(colorTag('24/7','good'));if(p.customers)x.push(colorTag('Jen pro zákazníky','warn'));if(p.truck)x.push(colorTag('Kamion','good'));return x.join('')}
+  function filtered(){let arr=state.items.filter(p=>{if(state.kind==='wc'&&!p.hasWC)return false;if(state.kind==='shower'&&!p.hasShower)return false;for(const c of state.filter){if(c==='wheelchair'&&!(p.hasWC&&p.wheelYes))return false;if(c==='shower'&&!p.hasShower)return false;if(c==='allDay'&&!p.allDay)return false;if(c==='truck'&&!p.truck)return false;if(c==='baby'&&!p.baby)return false;if(c==='water'&&!p.water)return false;if(c==='public'&&(!p.public||p.customers))return false;if(c==='favorites'&&!state.favorites.has(p.id))return false}
+   const fee=$('feeFilter').value;if(fee!=='all'&&fee!==p.fee)return false;return true});const sort=$('sortBy').value;if(sort==='name')arr.sort((a,b)=>a.name.localeCompare(b.name,'cs'));else if(sort==='free')arr.sort((a,b)=>(a.fee==='free'?0:1)-(b.fee==='free'?0:1)||distanceTo(a)-distanceTo(b));else arr.sort((a,b)=>distanceTo(a)-distanceTo(b));return arr}
+  function amenityIcons(p){
+    const toilet='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 3h12v11a6 6 0 0 1-12 0V3Z"/><path d="M8 7h8M10 21h4m-2-4v4"/></svg>';
+    const shower='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 20V8a5 5 0 0 1 10 0v2M10 10h11"/><path d="M12 14v2m4-2v2m4-2v2M12 19v1m4-1v1m4-1v1"/></svg>';
+    const wheel='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="4" r="2"/><path d="M12 7v7h6l2 5M11 11H8a7 7 0 1 0 9 8"/></svg>';
+    return '<div class="amenities" aria-label="Doložené vybavení">'+(p.hasWC?'<span class="amenity wc" title="WC uvedeno v mapových datech">'+toilet+' WC</span>':'')+(p.hasShower?'<span class="amenity shower" title="Sprcha uvedena v mapových datech">'+shower+' Sprcha</span>':'')+(p.wheelYes&&p.hasWC?'<span class="amenity wheelchair" title="Bezbariérové WC uvedeno v mapových datech">'+wheel+' Bezbariérové WC</span>':'')+'</div>';
+  }
+  function contextLine(p){
+    if(!p.nearbyName || p.hasOwnName)return '';
+    return '<div class="place-context" title="Název je z mapového objektu v okolí. Není potvrzeno, že WC patří k této provozovně.">V okolí: '+esc(p.nearbyName)+' <span style="font-weight:500;color:#9b8c7e">(cca '+esc(distanceLabel(p.nearbyDistance))+' od WC)</span></div>';
+  }
+  function iconFor(p){return '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">'+(p.hasShower&&!p.hasWC?'<path d="M4 16V8a5 5 0 0 1 10 0v2"/><path d="M12 10h8M14 13v2m4-2v2m-6 2v2m8-2v2"/>':'<path d="M6 4h12v11a6 6 0 0 1-12 0V4Z"/><path d="M9 7h6M9 21h6m-3-3v3"/>')+'</svg>'}
+  // Vector points stay visible even if the basemap icons/tiles fail to load.
+  function renderMarkers(arr){
+    if(!state.map||!state.markers)return;
+    state.markers.clearLayers();state.markerIndex.clear();
+    for(const p of arr){
+      const color=p.hasShower&&!p.hasWC?'#54765e':p.fee==='free'?'#477654':'#5b3827';
+      const m=L.circleMarker([p.lat,p.lon],{radius:11,color:'#fffdf9',weight:3,
+        fillColor:color,fillOpacity:1,opacity:1,bubblingMouseEvents:false}).addTo(state.markers);
+      m.bindPopup('<div style="min-width:170px"><strong style="font-size:13px">'+esc(p.name)+'</strong>'+
+        (p.nearbyName&&!p.hasOwnName?'<br><span style="color:#876344;font-size:11px">V okolí: '+esc(p.nearbyName)+'</span>':'')+
+        '<br><span style="color:#917969;font-size:11px">'+esc(addressText(p))+'</span>'+
+        '<br><span style="color:#917969;font-size:11px">'+esc(p.charge||(p.fee==='free'?'Zdarma':p.fee==='paid'?'Placené':'Cena neznámá'))+'</span>'+
+        '<br><button type="button" data-mapdetail="'+esc(p.id)+'" style="border:none;margin-top:10px;background:#4b372a;color:#fff;padding:8px 10px;border-radius:7px;cursor:pointer;font-weight:700">Podrobnosti →</button> <button type="button" data-mapnav="'+esc(p.id)+'" style="border:1px solid #cdb9a5;margin-top:10px;background:white;color:#4b372a;padding:8px 10px;border-radius:7px;cursor:pointer;font-weight:700">Navigovat ↗</button></div>');
+      m.bindTooltip(p.hasShower&&!p.hasWC?'Sprcha':p.name,{direction:'top'});
+      m.on('click',()=>{state.selected=p.id;markSelected()});
+      state.markerIndex.set(p.id,m);
+    }
+    const counter=$('markerSummary');
+    counter.hidden=!state.loaded;
+    if(state.loaded) counter.textContent='● '+arr.length+' '+(arr.length===1?'bod':arr.length<5?'body':'bodů')+' WC a sprch na mapě';
+  }
+  function fitMapToResults(){
+    if(!state.map||!state.loaded)return;
+    const arr=filtered();if(!arr.length)return;
+    const visible=arr.filter(p=>state.map.getBounds().contains([p.lat,p.lon]));
+    if(visible.length) return; // Respect manually chosen zoom and position.
+    const coordinates=arr.slice(0,900).map(p=>[p.lat,p.lon]);
+    if(state.placeLabel==='Moje okolí'&&state.user)coordinates.push(state.user);
+    if(coordinates.length===1)state.map.setView(coordinates[0],14,{animate:false});
+    else state.map.fitBounds(L.latLngBounds(coordinates),{padding:[45,45],maxZoom:14,animate:false});
+  }
+  function markSelected(){document.querySelectorAll('.place-card').forEach(x=>x.classList.toggle('selected',x.dataset.id===state.selected))}
+  function render(){if(!state.loading&&state.error){if(state.markers)state.markers.clearLayers();$('markerSummary').hidden=true;showMessage('Nepodařilo se načíst mapová data',state.error);return}if(state.loading&&!state.loaded){$('results').innerHTML='<div class="list-heading"><strong>Načítám WC a sprchy…</strong><small>Online mapa</small></div><div class="skeleton"></div><div class="skeleton"></div>';return}
+   const arr=filtered();renderMarkers(arr);const cnt=state.items.length;$('results').innerHTML='<div class="list-heading"><strong>'+(!state.loaded?'Najdi WC a sprchy':(state.placeLabel?esc(state.placeLabel)+' · ':'')+arr.length+' '+(arr.length===1?'místo':arr.length<5?'místa':'míst'))+'</strong><small>'+(!state.loaded?'Po celé ČR':cnt+' načteno v oblasti')+'</small></div>'+(state.loading&&state.loaded?'<div class="results-loading">Zobrazuji uložené výsledky, aktualizuji mapová data…</div>':'');
+   if(!state.loaded){$('results').innerHTML+='<div class="empty"><div class="empty-icon">WC</div><h3>Začni hledat</h3><p>Vyber město nebo aktuální polohu. Na mapě můžeš přejít do jiné oblasti.</p><button type="button" id="emptyLocate">Použít moji polohu</button></div>';$('emptyLocate').onclick=locate;return}
+   if(!arr.length){$('results').innerHTML+='<div class="empty"><div class="empty-icon">?</div><h3>Žádné odpovídající místo</h3><p>V načtené oblasti nejsou místa, která splňují všechny vybrané požadavky. Zkus zrušit některý filtr nebo načíst jinou oblast.</p><button type="button" id="emptyClear">Zrušit filtry</button></div>';$('emptyClear').onclick=clearFilters;return}
+   const frag=document.createDocumentFragment();for(const p of arr.slice(0,500)){const card=document.createElement('article');card.className='place-card'+(state.selected===p.id?' selected':'');card.dataset.id=p.id;const dist=distanceLabel(distanceTo(p));card.innerHTML='<div class="card-top"><div class="icon-tile '+(p.hasShower&&!p.hasWC?'shower':'')+'">'+iconFor(p)+'</div><div class="card-main"><h3 class="place-title">'+esc(p.name)+'</h3>'+contextLine(p)+addressLine(p)+'<div class="place-distance">Vzdálenost cca '+esc(dist)+' od '+(state.user?'tebe':'středu oblasti')+'</div></div></div>'+amenityIcons(p)+'<div class="tagbar">'+shortTags(p)+'</div><div class="card-actions"><button type="button" class="primary" data-action="nav" data-id="'+esc(p.id)+'" aria-label="Vybrat navigaci na '+esc(p.name)+'">Navigovat ↗</button><button type="button" class="secondary" data-action="detail" data-id="'+esc(p.id)+'">Podrobnosti</button><button type="button" class="secondary view-map-button" data-action="map" data-id="'+esc(p.id)+'" title="Zobrazit na mapě">Mapa</button><button type="button" class="secondary save '+(state.favorites.has(p.id)?'active':'')+'" data-action="fav" data-id="'+esc(p.id)+'" aria-label="'+(state.favorites.has(p.id)?'Odebrat z oblíbených':'Uložit místo')+'" title="Uložit místo">'+(state.favorites.has(p.id)?'♥':'♡')+'</button></div>';card.addEventListener('click',e=>{if(e.target.closest('button,a'))return;selectPoint(p)});frag.appendChild(card)}$('results').appendChild(frag);
+   if(arr.length>500){const more=document.createElement('p');more.className='note';more.textContent='Zobrazeno prvních 500 výsledků. Přibliž mapu nebo zpřesni filtry.';$('results').appendChild(more)}
+  }
+  function refreshMapSize(){
+    if(!state.map)return;
+    const el=$('map'), rect=el.getBoundingClientRect();
+    if(rect.width<150||rect.height<180)return;
+    state.map.invalidateSize({pan:false,animate:false});
+  }
+  let refreshTimer=0;
+  function scheduleMapRefresh(){
+    if(!state.map)return;
+    requestAnimationFrame(()=>refreshMapSize());
+    clearTimeout(refreshTimer);
+    refreshTimer=setTimeout(refreshMapSize,180);
+    setTimeout(refreshMapSize,420);
+  }
+  function setMobileView(v,scroll=false){
+    const viewChanged=$('shell').dataset.mobileView!==v;
+    $('shell').dataset.mobileView=v;
+    $('viewList').setAttribute('aria-pressed',String(v==='list'));
+    $('viewMap').setAttribute('aria-pressed',String(v==='map'));
+    if(v==='map'){scheduleMapRefresh();if(viewChanged)setTimeout(()=>{if(state.map){state.map.invalidateSize({pan:false,animate:false});renderMarkers(filtered());fitMapToResults();}},260)}
+    if(scroll)(v==='map'?document.querySelector('.map-wrap'):$('results')).scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  $('viewList').addEventListener('click',()=>setMobileView('list',true));
+  $('viewMap').addEventListener('click',()=>setMobileView('map',true));
+  function selectPoint(p){state.selected=p.id;markSelected();state.map.setView([p.lat,p.lon],Math.max(state.map.getZoom(),15),{animate:true});const m=state.markerIndex.get(p.id);if(m)m.openPopup();}
+  function getPoint(id){return state.items.find(p=>p.id===id)}
+  function toggleFavorite(p){if(state.favorites.has(p.id))state.favorites.delete(p.id);else state.favorites.add(p.id);try{localStorage.setItem('pauza-favorites-v1',JSON.stringify([...state.favorites]))}catch{}render();if($('modalBack').classList.contains('open'))$('modalFav').textContent=state.favorites.has(p.id)?'♥ Uloženo':'♡ Uložit'}
+  function val(v,yes='Ano',no='Ne'){if(isYes(v))return ['val-yes',yes];if(isNo(v))return ['val-no',no];if(v==='limited')return ['val-unknown','Omezeně'];return ['val-unknown','Neuvedeno']}
+  function detailRow(title,v,cls=''){return '<div class="detail-row"><span>'+esc(title)+'</span><strong class="'+cls+'">'+esc(v)+'</strong></div>'}
+  function detail(p){state.selected=p.id;markSelected();$('modalTitle').textContent=p.name;$('modalSubtitle').textContent=addressText(p)+' · '+distanceLabel(distanceTo(p))+' od '+(state.user?'tebe':'středu oblasti');const wc=p.hasWC?['val-yes','Ano']:['val-unknown','Neuvedeno'];const sh=p.hasShower?['val-yes','Ano']:['val-unknown','Neuvedeno'];const fee=p.fee==='free'?['val-yes','Zdarma']:p.fee==='paid'?['val-no',p.charge||'Placené, částka neznámá']:['val-unknown','Neuvedeno'];const rows=[...(p.nearbyName&&!p.hasOwnName?[['V blízkosti (neověřeno)',['',p.nearbyName+' · '+distanceLabel(p.nearbyDistance)+' od WC']]]:[]),['Adresa',[(p.addressKind==='exact'?'':'val-unknown'),(p.addressKind==='approx'?'Orientačně: ':'')+addressText(p)]],['GPS souřadnice',['',p.lat.toFixed(6)+', '+p.lon.toFixed(6)]],['WC',wc],['Sprcha',sh],['Poplatek / vstup',fee],['Cena sprchy',p.showerCharge?['val-no',p.showerCharge]:p.showerFee==='no'?['val-yes','Zdarma']:p.showerFee==='yes'?['val-no','Placená, cena neznámá']:['val-unknown','Neuvedeno']],['Bezbariérové WC',p.hasWC?val(p.wheel):['val-unknown','Není uvedeno WC']],['Otevřeno nonstop',p.allDay?['val-yes','Ano']:p.hours?['val-unknown','Neověřeno']:['val-unknown','Neuvedeno']],['Otevírací doba',p.hours?['',p.hours]:['val-unknown','Neuvedeno']],['Přebalovací pult',p.baby?['val-yes','Ano']:['val-unknown','Neuvedeno']],['Pitná voda',p.water?['val-yes','Ano']:['val-unknown','Neuvedeno']],['Pro kamiony',p.truck?['val-yes','Potvrzeno v datech']:['val-unknown','Neuvedeno']],['Přístup',p.customers?['val-no','Jen zákazníci']:p.public?['val-yes','Pro veřejnost']:p.access?['val-unknown',p.access]:['val-unknown','Neuvedeno']],['Provozovatel',p.operator?['',p.operator]:['val-unknown','Neuvedeno']]];$('modalRows').innerHTML=rows.map(r=>detailRow(r[0],r[1][1],r[1][0])).join('');$('modalNav').onclick=()=>openNav(p,$('modalNav'));$('osmSource').href=p.osmUrl;$('modalFav').textContent=state.favorites.has(p.id)?'♥ Uloženo':'♡ Uložit';$('modalFav').onclick=()=>toggleFavorite(p);$('modalBack').classList.add('open');$('modalBack').setAttribute('aria-hidden','false');$('closeModal').focus()}
+  function closeModal(){$('modalBack').classList.remove('open');$('modalBack').setAttribute('aria-hidden','true')}
+  $('closeModal').addEventListener('click',closeModal);$('modalBack').addEventListener('click',e=>{if(e.target===$('modalBack'))closeModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('navBack').classList.contains('open'))closeNav();else closeModal()}});
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-mapdetail]');if(b){const p=getPoint(b.dataset.mapdetail);if(p)detail(p)}const n=e.target.closest('[data-mapnav]');if(n){const p=getPoint(n.dataset.mapnav);if(p)openNav(p,n)}});
+  $('results').addEventListener('click',e=>{const el=e.target.closest('[data-action]');if(!el)return;const p=getPoint(el.dataset.id);if(!p)return;if(el.dataset.action==='address')resolveAddress(p,el);if(el.dataset.action==='nav')openNav(p,el);if(el.dataset.action==='detail')detail(p);if(el.dataset.action==='map'){setMobileView('map',true);setTimeout(()=>{scheduleMapRefresh();selectPoint(p)},280)}if(el.dataset.action==='fav')toggleFavorite(p)});
+  function clearFilters(){state.filter.clear();state.kind='all';$('feeFilter').value='all';for(const c of document.querySelectorAll('.chip')){c.classList.remove('active');c.setAttribute('aria-pressed','false')}for(const s of document.querySelectorAll('[data-kind]'))s.setAttribute('aria-pressed',String(s.dataset.kind==='all'));render()}
+  $('clearFilters').addEventListener('click',clearFilters);$('feeFilter').addEventListener('change',render);$('sortBy').addEventListener('change',render);document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{if(state.filter.has(b.dataset.filter))state.filter.delete(b.dataset.filter);else state.filter.add(b.dataset.filter);b.classList.toggle('active');b.setAttribute('aria-pressed',String(state.filter.has(b.dataset.filter)));render()}));document.querySelectorAll('[data-kind]').forEach(b=>b.addEventListener('click',()=>{state.kind=b.dataset.kind;document.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()}));
+  function formatBBox(bounds){return [bounds.getSouth(),bounds.getWest(),bounds.getNorth(),bounds.getEast()].map(x=>x.toFixed(5)).join(',')}
+  function overpassQuery(bbox){const b='('+bbox+')';return `[out:json][timeout:27];(nwr["amenity"~"^(toilets|shower)$"]${b};nwr["amenity"~"^(fuel|parking)$"]["toilets"="yes"]${b};nwr["amenity"~"^(fuel|parking)$"]["shower"="yes"]${b};nwr["highway"~"^(services|rest_area)$"]["toilets"="yes"]${b};nwr["highway"~"^(services|rest_area)$"]["shower"="yes"]${b};);out center tags;`}
+  // Základní místa nejdříve: jednoduchý node dotaz nemá drahé výpočty polygonů.
+  // Druhá fáze doplní čerpací stanice, odpočívadla a polygonové objekty.
+  function quickOverpassQuery(bbox){const b='('+bbox+')';return `[out:json][timeout:15];(node["amenity"="toilets"]${b};node["amenity"="shower"]${b};);out body;`}
+  // Netlify zachová parametr ?data=... a přepošle požadavek na server.
+  // Stejná doména řeší omezení CORS v mobilním prohlížeči. Přímý přístup je záložní.
+  const endpoints=[
+    '/api/overpass-a',
+    '/api/overpass-b',
+    'https://overpass.private.coffee/api/interpreter'
+  ];
+  const CACHE_PREFIX='pauza-osm-data-v4-'; // Keep old users' cached results.
+  const CACHE_FRESH_MS=12*60*60*1000, CACHE_STALE_MS=14*24*60*60*1000;
+  const cacheKey=bbox=>CACHE_PREFIX+bbox;
+  function getCached(bbox,maxAge){
+    try{const parsed=JSON.parse(localStorage.getItem(cacheKey(bbox))||'null');
+      if(parsed && typeof parsed.at==='number' && Date.now()-parsed.at<maxAge &&
+        Array.isArray(parsed.elements))return parsed;
+    }catch{}
+    return null;
+  }
+  function putCached(bbox,elements,complete=true){
+    if(!Array.isArray(elements)||elements.length>3500)return;
+    try{const body=JSON.stringify({at:Date.now(),elements,complete});
+      if(body.length>700000)return;
+      localStorage.setItem(cacheKey(bbox),body);
+      // Retain only a small set of recent areas, to avoid filling browser storage.
+      const keys=[];for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i);
+        if(key&&key.startsWith(CACHE_PREFIX))keys.push(key);
+      }
+      if(keys.length>10){const dates=keys.map(key=>{
+        let at=0;try{at=JSON.parse(localStorage.getItem(key)).at||0}catch{}
+        return {key,at};
+      }).sort((x,y)=>y.at-x.at);
+      dates.slice(10).forEach(x=>localStorage.removeItem(x.key));}
+    }catch{} // Data may still be used when storage is blocked/full.
+  }
+  function fetchOverpass(query,fast=false){
+    // Vyhrává první úspěšná odpověď. Jednotlivé zrcadlové servery mají vlastní časový limit.
+    // AbortError ukončeného požadavku neukazujeme uživateli jako chybu aplikace.
+    return new Promise((resolve,reject)=>{
+      const controllers=endpoints.map(()=>new AbortController());
+      let settled=false,finished=0;
+      const started=new Set(),timeouts=[],launchTimers=[];
+      const failures=[];
+      function complete(data){
+        if(settled)return;
+        settled=true;launchTimers.forEach(clearTimeout);timeouts.forEach(clearTimeout);
+        controllers.forEach(c=>{if(!c.signal.aborted)c.abort('other mirror succeeded')});
+        resolve(data);
+      }
+      function failed(i,error){
+        if(settled)return;
+        finished++;failures.push(error);
+        if(i===0)attempt(1);
+        if(i===1)attempt(2);
+        if(finished===endpoints.length){
+          settled=true;launchTimers.forEach(clearTimeout);
+          reject(new Error('Veřejné datové servery neodpověděly. Ověř připojení nebo zkus hledání později.'));
+        }
+      }
+      async function attempt(i){
+        if(settled||started.has(i))return;
+        started.add(i);
+        const c=controllers[i];let timedOut=false;
+        const limit=fast?13000:25500;
+        const timer=setTimeout(()=>{timedOut=true;c.abort('time limit')},limit);
+        timeouts.push(timer);
+        try{
+          const url=endpoints[i]+'?data='+encodeURIComponent(query);
+          const response=await fetch(url,{method:'GET',mode:'cors',signal:c.signal,headers:{Accept:'application/json'}});
+          if(!response.ok)throw Error('HTTP '+response.status);
+          const data=await response.json();
+          if(!data||!Array.isArray(data.elements))throw Error('Neplatná data ze serveru');
+          complete(data);
+        }catch(err){
+          if(settled)return;
+          console.warn('PAUZA: datový server '+(i+1)+' selhal:',timedOut?'časový limit':String(err));
+          failed(i,err);
+        }finally{clearTimeout(timer)}
+      }
+      attempt(0);
+      launchTimers.push(setTimeout(()=>attempt(1),fast?1450:2800));
+      launchTimers.push(setTimeout(()=>attempt(2),fast?3600:6500));
+    });
+  }
+  // Rychlý snapshot všech zveřejněných CZ bodů. Soubor se sestaví při deployi,
+  // nečeká se na veřejný Overpass při každém otevření stránky.
+  let staticPoints=null,staticPromise=null,staticMeta=null;
+  async function getStaticPoints(){
+    if(staticPromise)return staticPromise;
+    staticPromise=(async()=>{
+      try{
+        const response=await fetch('/data/wc-cr.json',{cache:'default'});
+        if(!response.ok)throw new Error('Datový soubor není na hostingu zveřejněn (HTTP '+response.status+').');
+        const data=await response.json();
+        if(!data||!Array.isArray(data.elements)||data.elements.length<10)throw new Error('Datový soubor neobsahuje platná místa.');
+        staticPoints=data.elements.filter(e=>Number.isFinite(e.lat)&&Number.isFinite(e.lon));
+        staticMeta=data.meta||{};
+        console.info('PAUZA: statická databáze',staticPoints.length,'míst');
+        return staticPoints;
+      }catch(err){
+        console.warn('PAUZA: lokální datový soubor není k dispozici:',String(err));
+        staticPoints=null;
+        return null;
+      }
+    })();
+    return staticPromise;
+  }
+  function fromStatic(bbox){
+    if(!staticPoints)return null;
+    const b=bbox.split(',').map(Number);
+    if(b.length!==4||b.some(n=>!Number.isFinite(n)))return [];
+    return staticPoints.filter(e=>e.lat>=b[0]&&e.lat<=b[2]&&e.lon>=b[1]&&e.lon<=b[3]);
+  }
+  async function useStaticData(bbox,token){
+    const points=await getStaticPoints();
+    if(token!==state.requestToken)return true;
+    if(!points)return false;
+    const subset=fromStatic(bbox);
+    state.loading=false;
+    state.loaded=true;
+    state.error=null;
+    useResponseData({elements:subset},bbox,token,'static');
+    const time=staticMeta?.generated_at?new Date(staticMeta.generated_at).toLocaleDateString('cs-CZ'):'';
+    status('Načteno '+state.items.length+' míst z vlastní databáze'+(time?' · data '+time:''));
+    return true;
+  }
+  function nearbySavedData(bbox,maxAge){
+    const requested=bbox.split(',').map(Number);if(requested.length!==4||requested.some(x=>!Number.isFinite(x)))return null;
+    const area=(requested[2]-requested[0])*(requested[3]-requested[1]);if(area<=0)return null;
+    let winner=null,score=0;
+    try{for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);if(!key?.startsWith(CACHE_PREFIX))continue;
+      const b=key.slice(CACHE_PREFIX.length).split(',').map(Number);
+      if(b.length!==4||b.some(x=>!Number.isFinite(x)))continue;
+      const overlap=Math.max(0,Math.min(b[2],requested[2])-Math.max(b[0],requested[0]))*Math.max(0,Math.min(b[3],requested[3])-Math.max(b[1],requested[1]));
+      const otherArea=(b[2]-b[0])*(b[3]-b[1]);
+      const ratio=overlap/Math.max(area,otherArea);
+      if(ratio<.72||ratio<=score)continue;
+      const data=JSON.parse(localStorage.getItem(key)||'null');
+      if(!data||!Array.isArray(data.elements)||Date.now()-data.at>maxAge)continue;
+      winner=data;score=ratio;
+    }}catch{}
+    return winner;
+  }
+  function useResponseData(data,bbox,token,source){
+    if(token!==state.requestToken)return false;
+    const found=new Map();
+    for(const e of data.elements){const p=parsePoint(e);if(p)found.set(p.id,p)}
+    state.items=[...found.values()];state.loaded=true;state.error=null;
+    state.loading=source==='cache-stale';
+    render();
+    if($('shell').dataset.mobileView==='map'){scheduleMapRefresh();fitMapToResults()}
+    const sourceLabel=source==='cache'?' · uložené výsledky':source==='cache-stale'?' · uložené výsledky, aktualizuji…':'';
+    status('Načteno '+state.items.length+' míst'+sourceLabel,source==='cache-stale'?'loading':'normal');
+    return true;
+  }
+  // Nechává již zobrazená WC na mapě po celou dobu druhé fáze dotazu.
+  async function enrichArea(bbox,token,first,keepMap){
+    try{
+      const richer=await fetchOverpass(overpassQuery(bbox),false);
+      if(token!==state.requestToken)return;
+      const merged=new Map();
+      for(const x of first.elements||[])merged.set(x.type+'/'+x.id,x);
+      for(const x of richer.elements||[])merged.set(x.type+'/'+x.id,x);
+      const all=[...merged.values()];
+      state.loading=false;
+      useResponseData({elements:all},bbox,token,'online');
+      putCached(bbox,all,true);
+      if(!keepMap&&window.matchMedia('(max-width:760px)').matches&&$('shell').dataset.mobileView==='list')setMobileView('list');
+      void addNearbyNames(bbox,token);
+    }catch(err){
+      if(token!==state.requestToken)return;
+      state.loading=false;state.error=null;
+      if(!state.loaded){state.loaded=true;state.items=[];}
+      render();
+      status('Základní WC načtena · další vybavení se nyní nepodařilo doplnit');
+      // Základní seznam i mapové body zachováme; data nejsou úplná.
+      console.warn('PAUZA: podrobné záznamy nelze doplnit',String(err));
+    }
+  }
+  async function loadArea(boxOverride=null,anchorOverride=null,placeLabel='',forceRefresh=false,keepMap=false){
+    const zoom=state.map.getZoom();if(!boxOverride&&zoom<10){status('Nejdřív přibliž mapu na město nebo oblast','error');showMessage('Přibliž mapu','Vyhledej město nebo přibliž mapu alespoň na úroveň 10.');return}
+    const bbox=boxOverride||formatBBox(state.map.getBounds().pad(.1));state.anchor=anchorOverride||[state.map.getCenter().lat,state.map.getCenter().lng];state.placeLabel=placeLabel;
+    state.lastBBox=bbox;
+    const token=++state.requestToken;state.error=null;state.selected=null;
+    closeModal();
+    status('Hledám v místní databázi WC…','loading');
+    if(await useStaticData(bbox,token)){
+      if(!keepMap&&window.matchMedia('(max-width:760px)').matches)setMobileView('list');
+      return;
+    }
+    // Starší statické nasazení bez vygenerované databáze má záložní živé hledání.
+    const fresh=!forceRefresh&&getCached(bbox,CACHE_FRESH_MS);
+    const stale=!fresh&&!forceRefresh&&(getCached(bbox,CACHE_STALE_MS)||nearbySavedData(bbox,CACHE_STALE_MS));
+    if(fresh){
+      state.loading=false;useResponseData(fresh,bbox,token,'cache');
+      if(!keepMap&&window.matchMedia('(max-width:760px)').matches)setMobileView('list');
+      if(fresh.complete===false){ // První rychlá fáze byla uložena, detaily se mohou doplnit.
+        state.loading=true;render();
+        void enrichArea(bbox,token,fresh,keepMap);
+      }else void addNearbyNames(bbox,token);
+      return;
+    }
+    if(stale){
+      state.loading=true;
+      useResponseData(stale,bbox,token,'cache-stale');
+      if(!keepMap&&window.matchMedia('(max-width:760px)').matches)setMobileView('list');
+    }else{
+      state.items=[];state.loaded=false;state.loading=true;
+      if(state.markers)state.markers.clearLayers();$('markerSummary').hidden=true;
+      status('Hledám základní WC v oblasti…','loading');render();
+    }
+    try{
+      const first=await fetchOverpass(quickOverpassQuery(bbox),true);
+      if(token!==state.requestToken)return;
+      if(first.elements.length){
+        state.loading=false;useResponseData(first,bbox,token,'online');
+        if(!keepMap&&window.matchMedia('(max-width:760px)').matches)setMobileView('list');
+        putCached(bbox,first.elements,false);
+        status('Základní WC: '+state.items.length+' · doplňuji další místa…','loading');
+      }else{
+        state.loading=true;status('Doplňuji WC a další vybavení…','loading');
+      }
+      // Další etapa je nezávislá na první: první místa už lze filtrovat i navigovat.
+      void enrichArea(bbox,token,first,keepMap);
+    }catch(err){
+      if(token!==state.requestToken)return;
+      state.loading=false;
+      if(stale){
+        state.error=null;status('Zobrazuji uložená data, aktualizace nyní není dostupná','error');render();
+      }else{
+        state.error='Chybí sestavená místní databáze WC a nepodařilo se načíst ani záložní online data. Ověř, že při nasazení proběhl build databáze. Zatím můžeš otevřít místa v Google Maps.';
+        state.loaded=false;state.items=[];
+        status('Živá data nejsou dostupná','error');render();
+      }
+    }
+  }
+  function showMessage(title,desc){
+    const search=(state.placeLabel||$('cityInput').value||'veřejné WC')+' veřejné WC';
+    const fallback='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(search);
+    $('results').innerHTML='<div class="list-heading"><strong>'+esc(title)+'</strong></div><div class="empty"><div class="empty-icon">!</div><h3>'+esc(title)+'</h3><p>'+esc(desc)+'</p><button type="button" id="messageRetry">Zkusit znovu</button><p class="note">Pokud mapový server stále nefunguje, můžeš vyhledat WC přímo v Google Maps.</p><a class="fallback-map-link" href="'+esc(fallback)+'">Vyhledat WC v Google Maps ↗</a></div>';
+    $('messageRetry').onclick=()=>loadArea(state.lastBBox||null,null,state.placeLabel,true);
+  }
+  // Fixed quick city centers avoid an extra geocoding request and start with a manageable area.
+  const QUICK_CENTERS={
+    'praha':{center:[50.0755,14.4378],radius:6.5},
+    'kladno':{center:[50.1473,14.1029],radius:4.5},
+    'benešov':{center:[49.7820,14.6870],radius:3.5},
+    'pardubice':{center:[50.0343,15.7812],radius:5.0},
+    'karlovy vary':{center:[50.2319,12.8719],radius:5.0},
+    'drahovice karlovy vary':{center:[50.2317,12.8914],radius:2.5},
+    'drahovice, karlovy vary':{center:[50.2317,12.8914],radius:2.5}
+  };
+  function localSearchBounds(center,radiusKm){
+    const latDelta=radiusKm/111.15,lonDelta=radiusKm/(111.15*Math.cos(center[0]*Math.PI/180));
+    return [center[0]-latDelta,center[1]-lonDelta,center[0]+latDelta,center[1]+lonDelta].map(v=>v.toFixed(5)).join(',');
+  }
+  async function geocodeCity(input){
+    const normalized=input.toLocaleLowerCase('cs-CZ').replace(/\s+/g,' ').trim();
+    if(QUICK_CENTERS[normalized])return {...QUICK_CENTERS[normalized],preset:true};
+    await getStaticPoints();
+    if(Array.isArray(staticMeta?.cities)){
+      const simplify=s=>String(s).toLocaleLowerCase('cs-CZ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[,\s]+/g,' ').trim();
+      const q=simplify(normalized);
+      const matches=staticMeta.cities.filter(p=>{
+        const n=simplify(p.name);
+        return n===q||q.startsWith(n+' ')||n.startsWith(q+' ');
+      });
+      const rank={'city':0,'town':1,'village':2,'suburb':3,'quarter':4,'neighbourhood':5,'hamlet':6};
+      matches.sort((a,b)=>{
+        const fa=simplify(a.name)===q?0:1,fb=simplify(b.name)===q?0:1;
+        return fa-fb+(rank[a.kind]??9)*.01-(rank[b.kind]??9)*.01;
+      });
+      const hit=matches[0];
+      if(hit)return {center:[hit.lat,hit.lon],radius:['suburb','quarter','neighbourhood'].includes(hit.kind)?2.5:4.8,preset:true};
+    }
+    const key='pauza-city-cache-v1-'+normalized;
+    try{const obj=JSON.parse(localStorage.getItem(key)||'null');if(obj&&Date.now()-obj.at<30*86400000)return obj.place}catch{}
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
+    try{
+      const url='https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=cz&accept-language=cs&limit=1&q='+encodeURIComponent(input+', Česko');
+      const response=await fetch(url,{signal:controller.signal,headers:{Accept:'application/json'}});
+      if(!response.ok)throw Error('Hledání města není dostupné');
+      const data=await response.json();if(!data.length)return null;
+      const place={center:[Number(data[0].lat),Number(data[0].lon)],radius:5.5,preset:false};
+      if(!place.center.every(Number.isFinite))throw Error('Neplatná poloha města');
+      try{localStorage.setItem(key,JSON.stringify({at:Date.now(),place}))}catch{}
+      return place;
+    }finally{clearTimeout(timer)}
+  }
+  async function searchCity(name){
+    const input=name.trim();if(!input)return;const searchToken=++state.searchToken;++state.requestToken;
+    $('cityInput').value=input;status('Hledám WC v oblasti…','loading');const b=$('cityForm').querySelector('button[type="submit"]');b.disabled=true;
+    try{
+      const place=await geocodeCity(input);if(searchToken!==state.searchToken)return;
+      if(!place){status('Město se nepodařilo najít','error');showMessage('Město nenalezeno','Zkus jiný název města nebo obce.');return}
+      const center=place.center;
+      state.map.setView(center,12,{animate:false});state.anchor=center;
+      // Bounded first-page search: a huge municipal polygon can take a very long time.
+      // Users can pan and select "Načíst oblast" for more places.
+      await loadArea(localSearchBounds(center,place.radius),center,input);
+      if(searchToken===state.searchToken&&state.loaded&&window.matchMedia('(max-width:760px)').matches){
+        $('results').scrollIntoView({behavior:'smooth',block:'start'});
+      }
+    }catch(err){if(searchToken!==state.searchToken)return;status('Hledání města není dostupné','error');showMessage('Hledání není dostupné','Zkontroluj připojení. Můžeš přesunout mapu a kliknout na Načíst oblast.')}
+    finally{if(searchToken===state.searchToken)b.disabled=false}
+  }
+  let geoToastTimeout=0;
+  function geoNotice(message,ms=6500){
+    const el=$('geoToast');el.textContent=message;el.hidden=false;
+    clearTimeout(geoToastTimeout);
+    if(ms)geoToastTimeout=setTimeout(()=>{el.hidden=true},ms);
+  }
+  function gpsError(err){
+    if(!window.isSecureContext) return 'GPS vyžaduje zabezpečené HTTPS připojení.';
+    if(err?.code===1)return 'Poloha není povolená. Otevři oprávnění webu v prohlížeči a povol přístup k poloze.';
+    if(err?.code===2)return 'Telefon nedokáže zjistit polohu. Zapni v telefonu polohové služby a zkus to znovu.';
+    if(err?.code===3)return 'Zjištění polohy trvalo příliš dlouho. Zkus zapnout GPS nebo otevřít web v Chromu.';
+    return 'Nepodařilo se určit polohu. Ověř oprávnění prohlížeče a zapnuté GPS.';
+  }
+  function setLocateButtons(isLoading){
+    $('mapLocate').disabled=isLoading;$('geolocate').disabled=isLoading;
+    $('mapLocate').innerHTML=isLoading?'Zjišťuji GPS…':'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/></svg>Moje poloha';
+  }
+  function locate(){
+    if(state.locating)return;
+    ++state.searchToken;
+    $('cityForm').querySelector('button[type="submit"]').disabled=false;
+    if(!window.isSecureContext||!navigator.geolocation){
+      const error='Poloha není dostupná. Otevři stránku přes HTTPS v Chromu a povol GPS.';
+      status(error,'error');geoNotice(error,9000);return;
+    }
+    state.locating=true;setLocateButtons(true);
+    status('Zjišťuji přesnou polohu telefonu…','loading');geoNotice('Zjišťuji polohu telefonu…',0);
+    const fail=err=>{
+      state.locating=false;setLocateButtons(false);
+      const message=gpsError(err);status(message,'error');geoNotice(message,11000);
+      $('mapUserBadge').hidden=true;
+    };
+    const success=async pos=>{
+      state.locating=false;setLocateButtons(false);
+      const lat=Number(pos.coords.latitude),lon=Number(pos.coords.longitude);
+      if(!Number.isFinite(lat)||!Number.isFinite(lon)){fail();return}
+      const accuracy=Math.max(0,Number(pos.coords.accuracy)||0);
+      state.user=[lat,lon];state.anchor=state.user;
+      // Show the map before centering. No dependency on the WC dataset.
+      setMobileView('map',false);
+      if(window.matchMedia('(max-width:760px)').matches)document.querySelector('.map-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+      refreshMapSize();
+      state.map.setView(state.user,16,{animate:false});
+      if(state.userMarker)state.map.removeLayer(state.userMarker);
+      if(state.accuracyCircle)state.map.removeLayer(state.accuracyCircle);
+      if(accuracy>0){state.accuracyCircle=L.circle(state.user,{radius:accuracy,color:'#247ab3',
+        weight:1,fillColor:'#247ab3',fillOpacity:.11,interactive:false}).addTo(state.map)}
+      state.userMarker=L.marker(state.user,{zIndexOffset:1000,icon:L.divIcon({
+        className:'',html:'<div class="user-dot"></div>',iconSize:[20,20],iconAnchor:[10,10]
+      })}).addTo(state.map).bindPopup('Tvoje poloha'+(accuracy?' · přesnost cca '+Math.round(accuracy)+' m':''));
+      state.userMarker.openPopup();
+      const msg='Poloha nalezena'+(accuracy?' · přesnost cca '+Math.round(accuracy)+' m':'');
+      $('mapUserBadge').textContent='● '+msg;$('mapUserBadge').hidden=false;
+      geoNotice(msg,6000);status(msg);scheduleMapRefresh();
+      // Preserve location and map view after listing the nearby WCs.
+      await loadArea(null,state.user,'Moje okolí',false,true);
+      setMobileView('map',false);scheduleMapRefresh();
+    };
+    const request=(highAccuracy,retry)=>navigator.geolocation.getCurrentPosition(success,err=>{
+      if(retry && err?.code===3){
+        geoNotice('GPS je pomalá, zkouším dostupnou polohu…',0);
+        request(false,false);
+      }else fail(err)
+    },{enableHighAccuracy:highAccuracy,timeout:highAccuracy?16000:14000,maximumAge:60000});
+    request(true,true);
+  }
+  $('cityForm').addEventListener('submit',e=>{e.preventDefault();searchCity($('cityInput').value)});document.querySelectorAll('[data-city]').forEach(b=>b.addEventListener('click',()=>searchCity(b.dataset.city)));$('geolocate').onclick=locate;$('mapLocate').onclick=locate;$('loadArea').onclick=()=>{++state.searchToken;loadArea()};
+  if(typeof window.L==='undefined'){$('results').innerHTML='<div class="empty"><h3>Mapa se nepodařila načíst</h3><p>K fungování je potřeba internetové připojení a přístup ke knihovně Leaflet. Zkus stránku otevřít znovu v běžném prohlížeči.</p></div>';status('Mapová knihovna je nedostupná','error');return}
+  // Každý mapový díl má záložní zdroj. Výpadek jedné dlaždice nesmí rozbít celou mapu.
+  const TileWithFallback=L.TileLayer.extend({
+    createTile(coords,done){
+      const image=document.createElement('img');
+      image.alt='';image.setAttribute('role','presentation');
+      image.decoding='async';
+      const z=coords.z,x=coords.x,y=coords.y;
+      const urls=[
+        'https://tile.openstreetmap.org/'+z+'/'+x+'/'+y+'.png',
+        'https://a.tile.openstreetmap.fr/hot/'+z+'/'+x+'/'+y+'.png',
+        'https://a.basemaps.cartocdn.com/light_all/'+z+'/'+x+'/'+y+'.png'
+      ];
+      let attempt=0,complete=false,timeout;
+      const finish=err=>{
+        if(complete)return;
+        complete=true;clearTimeout(timeout);
+        if(err)reportTileFailure();
+        done(err,image);
+      };
+      const next=()=>{
+        if(complete)return;
+        clearTimeout(timeout);
+        attempt++;
+        if(attempt>=urls.length){finish(new Error('Mapové servery nejsou dostupné'));return;}
+        image.src=urls[attempt];timeout=setTimeout(next,10000);
+      };
+      image.onload=()=>finish(null);
+      image.onerror=next;
+      image.src=urls[0];timeout=setTimeout(next,10000);
+      return image;
+    }
+  });
+  let missingTiles=0;
+  function reportTileFailure(){
+    if(++missingTiles<3)return;
+    const pane=$('tileWarning');pane.hidden=false;
+    const c=state.map.getCenter();
+    $('tileFallbackLink').href='https://www.openstreetmap.org/?mlat='+encodeURIComponent(c.lat.toFixed(6))+'&mlon='+encodeURIComponent(c.lng.toFixed(6))+'#map='+state.map.getZoom()+'/'+c.lat.toFixed(5)+'/'+c.lng.toFixed(5);
+  }
+  state.map=L.map('map',{zoomControl:false,scrollWheelZoom:true,fadeAnimation:false}).setView([49.85,15.35],7);
+  const base=new TileWithFallback('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    minZoom:6,maxZoom:19,updateWhenIdle:true,keepBuffer:2,
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · záložní podklady: <a href="https://www.openstreetmap.fr/" target="_blank" rel="noopener">OSM France</a> · <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'
+  }).addTo(state.map);
+  base.on('loading',()=>{missingTiles=0;$('tileWarning').hidden=true});
+  L.control.zoom({position:'bottomright'}).addTo(state.map);
+  state.markers=L.layerGroup().addTo(state.map);
+  state.map.on('moveend',()=>{if(state.loaded&&!state.loading)status('Přesunutá mapa – tlačítkem načti novou oblast')});
+  if(typeof ResizeObserver!=='undefined'){
+    const mapObserver=new ResizeObserver(()=>scheduleMapRefresh());
+    mapObserver.observe(document.querySelector('.map-wrap'));
+  }
+  window.addEventListener('resize',scheduleMapRefresh,{passive:true});
+  window.addEventListener('orientationchange',()=>setTimeout(scheduleMapRefresh,300),{passive:true});
+  window.addEventListener('pageshow',scheduleMapRefresh);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleMapRefresh()});
+  scheduleMapRefresh();render();
+  void getStaticPoints(); // na pozadí, před prvním vyhledáním
+})();
+</script>
+</body>
+</html>
