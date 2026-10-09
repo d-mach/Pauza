@@ -1,0 +1,12 @@
+{
+  "name": "pauza-toalety-cr",
+  "version": "2.0.0",
+  "private": true,
+  "description": "PAUZA, Czech toilets and showers, static OSM snapshot built at deployment",
+  "scripts": {
+    "build": "python3 -m pip install --disable-pip-version-check --quiet osmium && python3 scripts/build_places.py"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
