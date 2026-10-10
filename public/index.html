@@ -196,7 +196,7 @@
 <script>
 (()=>{'use strict';
   const $=id=>document.getElementById(id);
-  const state={items:[],filter:new Set(),kind:'all',anchor:[49.95,15.35],user:null,selected:null,loading:false,loaded:false,error:null,requestToken:0,searchToken:0,placeLabel:"",favorites:new Set(),map:null,markers:null,markerIndex:new Map(),userMarker:null,contextPlaces:[],contextToken:0,accuracyCircle:null,locating:false};
+  const state={items:[],filter:new Set(),kind:'all',anchor:[49.95,15.35],user:null,selected:null,loading:false,loaded:false,error:null,requestToken:0,searchToken:0,placeLabel:"",favorites:new Set(),map:null,markers:null,markerIndex:new Map(),userMarker:null,contextPlaces:[],contextToken:0,accuracyCircle:null,locating:false,searchRadiusKm:0};
   try{state.favorites=new Set(JSON.parse(localStorage.getItem('pauza-favorites-v1')||'[]'))}catch{}
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const isYes=v=>['yes','designated','official','public'].includes(String(v||'').toLowerCase());
@@ -420,17 +420,18 @@
     }
     const counter=$('markerSummary');
     counter.hidden=!state.loaded;
-    if(state.loaded) counter.textContent='● '+arr.length+' '+(arr.length===1?'bod':arr.length<5?'body':'bodů')+' WC a sprch na mapě';
+    if(state.loaded) counter.textContent='● '+arr.length+' '+(arr.length===1?'místo':arr.length>=2&&arr.length<=4?'místa':'míst')+' na mapě'+(state.filter.size||state.kind!=='all'||$('feeFilter').value!=='all'?' · filtrované z '+state.items.length:'');
   }
-  function fitMapToResults(){
+  function fitMapToResults(force=false){
     if(!state.map||!state.loaded)return;
     const arr=filtered();if(!arr.length)return;
-    const visible=arr.filter(p=>state.map.getBounds().contains([p.lat,p.lon]));
-    if(visible.length) return; // Respect manually chosen zoom and position.
-    const coordinates=arr.slice(0,900).map(p=>[p.lat,p.lon]);
+    if(!force&&arr.some(p=>state.map.getBounds().contains([p.lat,p.lon])))return;
+    // Center on the nearest matches, not the entire country. Include user's GPS.
+    const nearest=[...arr].sort((a,b)=>distanceTo(a)-distanceTo(b)).slice(0,35);
+    const coordinates=nearest.map(p=>[p.lat,p.lon]);
     if(state.placeLabel==='Moje okolí'&&state.user)coordinates.push(state.user);
     if(coordinates.length===1)state.map.setView(coordinates[0],14,{animate:false});
-    else state.map.fitBounds(L.latLngBounds(coordinates),{padding:[45,45],maxZoom:14,animate:false});
+    else state.map.fitBounds(L.latLngBounds(coordinates),{padding:[48,48],maxZoom:14,animate:false});
   }
   function markSelected(){document.querySelectorAll('.place-card').forEach(x=>x.classList.toggle('selected',x.dataset.id===state.selected))}
   function render(){if(!state.loading&&state.error){if(state.markers)state.markers.clearLayers();$('markerSummary').hidden=true;showMessage('Nepodařilo se načíst mapová data',state.error);return}if(state.loading&&!state.loaded){$('results').innerHTML='<div class="list-heading"><strong>Načítám WC a sprchy…</strong><small>Online mapa</small></div><div class="skeleton"></div><div class="skeleton"></div>';return}
@@ -465,7 +466,7 @@
     $('shell').dataset.mobileView=v;
     $('viewList').setAttribute('aria-pressed',String(v==='list'));
     $('viewMap').setAttribute('aria-pressed',String(v==='map'));
-    if(v==='map'){scheduleMapRefresh();if(viewChanged)setTimeout(()=>{if(state.map){state.map.invalidateSize({pan:false,animate:false});renderMarkers(filtered());fitMapToResults();}},260)}
+    if(v==='map'){scheduleMapRefresh();if(viewChanged)setTimeout(()=>{if(state.map){state.map.invalidateSize({pan:false,animate:false});renderMarkers(filtered());fitMapToResults(true);}},260)}
     if(scroll)(v==='map'?document.querySelector('.map-wrap'):$('results')).scrollIntoView({behavior:'smooth',block:'start'});
   }
   $('viewList').addEventListener('click',()=>setMobileView('list',true));
@@ -480,18 +481,43 @@
   $('closeModal').addEventListener('click',closeModal);$('modalBack').addEventListener('click',e=>{if(e.target===$('modalBack'))closeModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('navBack').classList.contains('open'))closeNav();else closeModal()}});
   document.addEventListener('click',e=>{const b=e.target.closest('[data-mapdetail]');if(b){const p=getPoint(b.dataset.mapdetail);if(p)detail(p)}const n=e.target.closest('[data-mapnav]');if(n){const p=getPoint(n.dataset.mapnav);if(p)openNav(p,n)}});
   $('results').addEventListener('click',e=>{const el=e.target.closest('[data-action]');if(!el)return;const p=getPoint(el.dataset.id);if(!p)return;if(el.dataset.action==='address')resolveAddress(p,el);if(el.dataset.action==='nav')openNav(p,el);if(el.dataset.action==='detail')detail(p);if(el.dataset.action==='map'){setMobileView('map',true);setTimeout(()=>{scheduleMapRefresh();selectPoint(p)},280)}if(el.dataset.action==='fav')toggleFavorite(p)});
-  function clearFilters(){state.filter.clear();state.kind='all';$('feeFilter').value='all';for(const c of document.querySelectorAll('.chip')){c.classList.remove('active');c.setAttribute('aria-pressed','false')}for(const s of document.querySelectorAll('[data-kind]'))s.setAttribute('aria-pressed',String(s.dataset.kind==='all'));render()}
-  $('clearFilters').addEventListener('click',clearFilters);$('feeFilter').addEventListener('change',render);$('sortBy').addEventListener('change',render);document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
+  function clearFilters(deferRender=false){
+    state.filter.clear();state.kind='all';$('feeFilter').value='all';$('sortBy').value='distance';
+    for(const c of document.querySelectorAll('.chip')){c.classList.remove('active');c.setAttribute('aria-pressed','false')}
+    for(const b of document.querySelectorAll('[data-kind]'))b.setAttribute('aria-pressed',String(b.dataset.kind==='all'));
+    if(!deferRender)applyFilters();
+  }
+  // All controls update the same list AND Leaflet marker layer. In-memory static
+  // data lets us broaden the search after a strict filter without network waits.
+  function applyFilters(){
+    render();
+    const mapVisible=$('shell').dataset.mobileView==='map'||!window.matchMedia('(max-width:760px)').matches;
+    if(state.loaded&&staticPoints&&state.anchor&&filtered().length===0 && !state.loading){
+      const bbox=state.lastBBox?.split(',').map(Number)||[];
+      const radius=bbox.length===4?Math.abs(bbox[2]-bbox[0])*111.15/2:0;
+      const target=state.filter.has('truck')?25:Math.max(10,Math.min(18,radius*1.8));
+      if(radius<target-0.5){
+        void loadArea(localSearchBounds(state.anchor,target),state.anchor,state.placeLabel,false,mapVisible);
+        return;
+      }
+    }
+    if(mapVisible&&state.loaded&&filtered().length){
+      scheduleMapRefresh();fitMapToResults(true);
+    }
+  }
+  $('clearFilters').addEventListener('click',()=>clearFilters());
+  $('feeFilter').addEventListener('change',applyFilters);
+  $('sortBy').addEventListener('change',applyFilters);
+  document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{
     if(state.filter.has(b.dataset.filter))state.filter.delete(b.dataset.filter);else state.filter.add(b.dataset.filter);
     b.classList.toggle('active');b.setAttribute('aria-pressed',String(state.filter.has(b.dataset.filter)));
-    if(b.dataset.filter==='truck'&&state.filter.has('truck')&&state.loaded&&state.anchor&&staticPoints){
-      // Rozšíření jen u lokální databáze: žádný další požadavek na veřejný Overpass.
-      const b=state.lastBBox?.split(',').map(Number)||[];
-      const currLatKm=b.length===4?Math.abs(b[2]-b[0])*111/2:0;
-      if(currLatKm<14){void loadArea(localSearchBounds(state.anchor,15),state.anchor,state.placeLabel,false,$('shell').dataset.mobileView==='map');return;}
-    }
-    render();
-  }));document.querySelectorAll('[data-kind]').forEach(b=>b.addEventListener('click',()=>{state.kind=b.dataset.kind;document.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()}));
+    applyFilters();
+  }));
+  document.querySelectorAll('[data-kind]').forEach(b=>b.addEventListener('click',()=>{
+    state.kind=b.dataset.kind;
+    document.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+    applyFilters();
+  }));
   function formatBBox(bounds){return [bounds.getSouth(),bounds.getWest(),bounds.getNorth(),bounds.getEast()].map(x=>x.toFixed(5)).join(',')}
   function overpassQuery(bbox){const b='('+bbox+')';return `[out:json][timeout:27];(nwr["amenity"~"^(toilets|shower)$"]${b};nwr["amenity"~"^(fuel|parking)$"]["toilets"="yes"]${b};nwr["amenity"~"^(fuel|parking)$"]["shower"="yes"]${b};nwr["highway"~"^(services|rest_area)$"]["toilets"="yes"]${b};nwr["highway"~"^(services|rest_area)$"]["shower"="yes"]${b};);out center tags;`}
   // Základní místa nejdříve: jednoduchý node dotaz nemá drahé výpočty polygonů.
@@ -679,6 +705,8 @@
   async function loadArea(boxOverride=null,anchorOverride=null,placeLabel='',forceRefresh=false,keepMap=false){
     const zoom=state.map.getZoom();if(!boxOverride&&zoom<10){status('Nejdřív přibliž mapu na město nebo oblast','error');showMessage('Přibliž mapu','Vyhledej město nebo přibliž mapu alespoň na úroveň 10.');return}
     const bbox=boxOverride||formatBBox(state.map.getBounds().pad(.1));state.anchor=anchorOverride||[state.map.getCenter().lat,state.map.getCenter().lng];state.placeLabel=placeLabel;
+    const boxParts=bbox.split(',').map(Number);
+    state.searchRadiusKm=(boxParts.length===4 && boxParts.every(Number.isFinite))?Math.round(Math.abs(boxParts[2]-boxParts[0])*111.15/2):0;
     state.lastBBox=bbox;
     const token=++state.requestToken;state.error=null;state.selected=null;
     closeModal();
@@ -837,12 +865,18 @@
       const message=gpsError(err);status(message,'error');geoNotice(message,11000);
       $('mapUserBadge').hidden=true;
     };
+    const locationSearchToken=state.searchToken;
     const success=async pos=>{
+      if(locationSearchToken!==state.searchToken){state.locating=false;setLocateButtons(false);return}
       state.locating=false;setLocateButtons(false);
       const lat=Number(pos.coords.latitude),lon=Number(pos.coords.longitude);
       if(!Number.isFinite(lat)||!Number.isFinite(lon)){fail();return}
       const accuracy=Math.max(0,Number(pos.coords.accuracy)||0);
       state.user=[lat,lon];state.anchor=state.user;
+      // A fresh GPS search always starts with ALL available WC and showers.
+      // Filters selected for a previous city must not hide nearby places.
+      clearFilters(true);
+      $('cityInput').value='';
       // Show the map before centering. No dependency on the WC dataset.
       setMobileView('map',false);
       if(window.matchMedia('(max-width:760px)').matches)document.querySelector('.map-wrap').scrollIntoView({behavior:'smooth',block:'start'});
@@ -859,9 +893,23 @@
       const msg='Poloha nalezena'+(accuracy?' · přesnost cca '+Math.round(accuracy)+' m':'');
       $('mapUserBadge').textContent='● '+msg;$('mapUserBadge').hidden=false;
       geoNotice(msg,6000);status(msg);scheduleMapRefresh();
-      // Preserve location and map view after listing the nearby WCs.
-      await loadArea(null,state.user,'Moje okolí',false,true);
-      setMobileView('map',false);scheduleMapRefresh();
+      // Always search an actual geographic radius rather than the narrow zoom-16
+      // viewport. Widen once more when the first area has zero mapped facilities.
+      await loadArea(localSearchBounds(state.user,8),state.user,'Moje okolí',false,true);
+      if(locationSearchToken!==state.searchToken)return;
+      if(state.loaded&&state.items.length===0){
+        await loadArea(localSearchBounds(state.user,18),state.user,'Moje okolí',false,true);
+      }
+      if(locationSearchToken!==state.searchToken)return;
+      setMobileView('map',false);
+      scheduleMapRefresh();
+      if(state.loaded&&filtered().length){
+        fitMapToResults(true);
+        status('WC a sprchy v okolí · '+filtered().length+' míst (oblast cca '+state.searchRadiusKm+' km)');
+      }else if(state.loaded){
+        status('V prohledané oblasti cca '+state.searchRadiusKm+' km nejsou WC v dostupných datech. Zkus Načíst oblast.');
+        geoNotice('V okolí nebylo nalezeno WC v databázi · můžeš posunout mapu a načíst další oblast.',9000);
+      }
     };
     const request=(highAccuracy,retry)=>navigator.geolocation.getCurrentPosition(success,err=>{
       if(retry && err?.code===3){
@@ -920,7 +968,10 @@
   base.on('loading',()=>{missingTiles=0;$('tileWarning').hidden=true});
   L.control.zoom({position:'bottomright'}).addTo(state.map);
   state.markers=L.layerGroup().addTo(state.map);
-  state.map.on('moveend',()=>{if(state.loaded&&!state.loading)status('Přesunutá mapa – tlačítkem načti novou oblast')});
+  state.map.on('moveend',()=>{if(state.loaded&&!state.loading&&state.map._pauzaManualMove)status('Přesunutá mapa – tlačítkem načti novou oblast')});
+  state.map.on('dragstart',()=>{state.map._pauzaManualMove=true});
+  state.map.on('zoomstart',()=>{state.map._pauzaManualMove=false});
+  state.map.on('dragend',()=>setTimeout(()=>{state.map._pauzaManualMove=false},300));
   if(typeof ResizeObserver!=='undefined'){
     const mapObserver=new ResizeObserver(()=>scheduleMapRefresh());
     mapObserver.observe(document.querySelector('.map-wrap'));
